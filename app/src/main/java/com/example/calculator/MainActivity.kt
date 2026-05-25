@@ -7,6 +7,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -15,9 +16,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.calculator.layout.InitTopBar
-import com.example.calculator.layout.Standard.InitStandardCalculator
-import com.example.calculator.layout.Equations.InitEquationsCalculator
-import com.example.calculator.layout.Functions.InitFunctionsCalculator
+import com.example.calculator.layout.standard.InitStandardCalculator
+import com.example.calculator.layout.equations.InitEquationsCalculator
+import com.example.calculator.layout.functions.InitFunctionsCalculator
 import com.example.calculator.ui.theme.CalculatorTheme
 import com.example.calculator.layout.calculator_current_type
 
@@ -66,6 +67,9 @@ class MainActivity : ComponentActivity() {
                             isDarkMode = isDarkMode,
                             onDarkModeChange = { isDarkMode = it }
                         )
+                    }
+                    else {
+                        Text("HOWWWWW?!")
                     }
                 }
             }

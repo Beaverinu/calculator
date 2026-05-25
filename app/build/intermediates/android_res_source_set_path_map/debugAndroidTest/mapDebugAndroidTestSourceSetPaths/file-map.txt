@@ -1,0 +1,5 @@
+com.example.calculator.test.app-updated_navigation_xml-0 D:\matic\project\sluzba\calculator\app\build\generated\updated_navigation_xml\debugAndroidTest
+com.example.calculator.test.app-packageDebugAndroidTestResources-1 D:\matic\project\sluzba\calculator\app\build\intermediates\incremental\debugAndroidTest\packageDebugAndroidTestResources\merged.dir
+com.example.calculator.test.app-packageDebugAndroidTestResources-2 D:\matic\project\sluzba\calculator\app\build\intermediates\incremental\debugAndroidTest\packageDebugAndroidTestResources\stripped.dir
+com.example.calculator.test.app-debugAndroidTest-3 D:\matic\project\sluzba\calculator\app\build\intermediates\merged_res\debugAndroidTest\mergeDebugAndroidTestResources
+gradleHome-0 C:\Users\matic\.gradle

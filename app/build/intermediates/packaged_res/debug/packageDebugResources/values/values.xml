@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <array name="com_google_android_gms_fonts_certs">
+        <item>@array/com_google_android_gms_fonts_certs_dev</item>
+        <item>@array/com_google_android_gms_fonts_certs_prod</item>
+    </array>
+    <string-array name="com_google_android_gms_fonts_certs_dev">
+        <item>
+            MIIEqDCCApCgAwIBAgIJAN5m+YU8qWPCMA0GCSqGSIb3DQEBBQUAMUmxQzBBBgNVBAMTCkdvb2dsZSBDZXJ0aWZpY2F0ZSBBdXRob3JpdHkxCzAJBgNVBAYTAlVTMRMwEQYDVQQIEwpDYWxpZm9ybmlhMRYwFAYDVQQHEw1Nb3VudGFpbiBWaWV3MB4XDTE2MDgwNTE2MzU1NloXDTI2MDgwNTE2MzU1NlowUmxQzBBBgNVBAMTCkdvb2dsZSBDZXJ0aWZpY2F0ZSBBdXRob3JpdHkxCzAJBgNVBAYTAlVTMRMwEQYDVQQIEwpDYWxpZm9ybmlhMRYwFAYDVQQHEw1Nb3VudGFpbiBWaWV3MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEA75vbEfp9UuOFreBVY6FPW31xqDGmDlsC2o1H5P73LNoM6O++CeS0nkhN7f9I9Sj+6oV06nS6fH2T76L5M0kS6h7+77H9
+        </item>
+    </string-array>
+    <string-array name="com_google_android_gms_fonts_certs_prod">
+        <item>
+            MIIEqDCCApCgAwIBAgIJAN5m+YU8qWPCMA0GCSqGSIb3DQEBBQUAMUmxQzBBBgNVBAMTCkdvb2dsZSBDZXJ0aWZpY2F0ZSBBdXRob3JpdHkxCzAJBgNVBAYTAlVTMRMwEQYDVQQIEwpDYWxpZm9ybmlhMRYwFAYDVQQHEw1Nb3VudGFpbiBWaWV3MB4XDTE2MDgwNTE2MzU1NloXDTI2MDgwNTE2MzU1NlowUmxQzBBBgNVBAMTCkdvb2dsZSBDZXJ0aWZpY2F0ZSBBdXRob3JpdHkxCzAJBgNVBAYTAlVTMRMwEQYDVQQIEwpDYWxpZm9ybmlhMRYwFAYDVQQHEw1Nb3VudGFpbiBWaWV3MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEA75vbEfp9UuOFreBVY6FPW31xqDGmDlsC2o1H5P73LNoM6O++CeS0nkhN7f9I9Sj+6oV06nS6fH2T76L5M0kS6h7+77H9
+        </item>
+    </string-array>
+    <color name="LightPurplePink">#7004AD</color>
+    <color name="black">#FF000000</color>
+    <color name="purple_200">#FFBB86FC</color>
+    <color name="purple_500">#FF6200EE</color>
+    <color name="purple_700">#FF3700B3</color>
+    <color name="teal_200">#FF03DAC5</color>
+    <color name="teal_700">#FF018786</color>
+    <color name="white">#FFFFFFFF</color>
+    <string name="app_name">calculator</string>
+    <style name="Theme.Calculator" parent="android:Theme.Material.Light.NoActionBar"/>
+</resources>
