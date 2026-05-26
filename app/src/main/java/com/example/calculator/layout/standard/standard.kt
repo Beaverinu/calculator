@@ -1,6 +1,5 @@
 package com.example.calculator.layout.standard
 
-import android.graphics.fonts.FontFamily
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -15,6 +14,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -23,15 +23,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.calculator.font.Font_roboto_mono
-import com.example.calculator.font.Roboto_Mono
+import androidx.compose.foundation.text.input.TextFieldState
 
 val StandardKeyboard_st = listOf(
-    "2ⁿᵈ", "π", "e", "C", "⌫",
-    "x²", "1/x", "|x|", "exp", "%",
-    "√x", "(", ")", "n!", "÷",
+    "2ⁿᵈ", "π", "e", "▲", "⌫",
+    "x²", "1/x", "◀", "exp", "▶",
+    "√x", "(", ")", "▼", "÷",
     "xʸ", "7", "8", "9", "×",
     "10ˣ", "4", "5", "6", "-",
     "log", "1", "2", "3", "+",
@@ -41,14 +41,15 @@ val StandardKeyboard_st = listOf(
 val StandardKeyboard_nd = listOf(
     "1ˢᵗ", "π", "e", "C", "⌫",
     "x³", "1/x", "|x|", "exp", "%",
-    "³√x", "(", ")", "n!", "÷",
-    "ʸ√x", "7", "8", "9", "×",
-    "2ˣ", "4", "5", "6", "-",
-    "logᵧx", "1", "2", "3", "+",
-    "eˣ", "+/-", "0", ".", "="
+    "³√x", "(", ")", "x!", "÷",
+    "ʸ√x", "sin", "cos", "tan", "×",
+    "2ˣ", "sin⁻¹", "cos⁻¹", "tan⁻¹", "-",
+    "logᵧx", "sinh", "cosh", "tanh", "+",
+    "eˣ", "sinh⁻¹", "cosh⁻¹", "tanh⁻¹", "ans"
 )
 var current_keyboard_in_use by mutableStateOf(1)
-var current_text_in_standard_calculator by mutableStateOf("0")
+val current_text_state = TextFieldState("0")
+var cursorIndex by mutableIntStateOf(1)
 @Composable
 fun InitStandardCalculator(
     paddingValues: PaddingValues,
@@ -66,11 +67,18 @@ fun InitStandardCalculator(
                 .fillMaxWidth(),
             contentAlignment = Alignment.BottomEnd
         ) {
-            AutoResizingText(
-                text = current_text_in_standard_calculator,
-                style = MaterialTheme.typography.displayLarge,
-                modifier = Modifier.padding(16.dp),
-                color = MaterialTheme.colorScheme.onBackground
+            CaretOverlayTextField(
+                state = current_text_state,
+                cursorIndex = cursorIndex,
+                onCursorIndexChange = { cursorIndex = it },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                textStyle = MaterialTheme.typography.displayLarge.copy(
+                    textAlign = TextAlign.End,
+                    fontSize = 48.sp
+                ),
+                caretColor = MaterialTheme.colorScheme.primary
             )
         }
 
