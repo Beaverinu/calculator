@@ -12,24 +12,16 @@ import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.foundation.text.BasicText
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.text.TextLayoutResult
-
+import com.example.calculator.layout.AutoResizingText
+import com.example.calculator.layout.FakeCursorText
 val StandardKeyboard_st = listOf(
     "2ⁿᵈ", "π", "e", "▲", "⌫",
     "x²", "1/x", "◀", "exp", "▶",
@@ -77,10 +69,8 @@ fun InitStandardCalculator(
                     .fillMaxWidth()
                     .align(Alignment.BottomEnd)
                     .padding(16.dp),
-                style = MaterialTheme.typography.displayLarge.copy(
-                    fontSize = 48.sp,
-                    color = MaterialTheme.colorScheme.onBackground
-                ),
+                style = MaterialTheme.typography.displayLarge.copy(fontSize = 48.sp),
+                color = MaterialTheme.colorScheme.onBackground,
                 cursorColor = MaterialTheme.colorScheme.secondary
             )
         }
@@ -148,7 +138,6 @@ fun MakeStandardKeyboard(
             }
         }
     }
-
 }
 
 fun record_key_press(index: Int, keyboard: Int) {
@@ -163,82 +152,3 @@ fun record_key_press(index: Int, keyboard: Int) {
     }
 }
 
-@Composable
-fun AutoResizingText(
-    text: String,
-    style: TextStyle,
-    modifier: Modifier = Modifier,
-    color: Color = Color.Unspecified
-) {
-    var resizedTextStyle by remember(text) { mutableStateOf(style) }
-    var readyToDraw by remember(text) { mutableStateOf(false) }
-
-    Text(
-        text = text,
-        color = color,
-        modifier = modifier.drawWithContent {
-            if (readyToDraw) drawContent()
-        },
-        style = resizedTextStyle,
-        softWrap = false,
-        onTextLayout = { result ->
-            if (result.didOverflowWidth) {
-                resizedTextStyle = resizedTextStyle.copy(
-                    fontSize = resizedTextStyle.fontSize * 0.95
-                )
-            }
-            else {
-                readyToDraw = true
-            }
-        },
-    )
-}
-@Composable
-fun FakeCursorText(
-    text: String,
-    cursorIndex: Int,
-    modifier: Modifier = Modifier,
-    style: TextStyle,
-    cursorColor: Color = Color.White,
-    cursorWidthPx: Float = 6f,
-) {
-    var layoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
-    var resizedTextStyle by remember(text) { mutableStateOf(style.copy(textAlign = TextAlign.End)) }
-    var readyToDraw by remember(text) { mutableStateOf(false) }
-
-    val clampedIndex = cursorIndex.coerceIn(0, text.length)
-
-    Box(
-        modifier = modifier.drawWithContent {
-            if (readyToDraw) {
-                drawContent()
-
-                val lr = layoutResult ?: return@drawWithContent
-                val rect = lr.getCursorRect(clampedIndex)
-
-                drawLine(
-                    color = cursorColor,
-                    start = Offset(rect.left, rect.top),
-                    end = Offset(rect.left, rect.bottom),
-                    strokeWidth = cursorWidthPx
-                )
-            }
-        }
-    ) {
-        BasicText(
-            text = text,
-            style = resizedTextStyle,
-            modifier = Modifier.fillMaxWidth(),
-            onTextLayout = { result ->
-                if (result.didOverflowWidth) {
-                    resizedTextStyle = resizedTextStyle.copy(
-                        fontSize = resizedTextStyle.fontSize * 0.95
-                    )
-                } else {
-                    layoutResult = result
-                    readyToDraw = true
-                }
-            },
-        )
-    }
-}

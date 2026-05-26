@@ -13,7 +13,39 @@ fun pressed_key(current_key_pressed: String) {
         "1ˢᵗ" -> current_keyboard_in_use = 1
         "C" -> state.edit { replace(0, length, "0") }
         "▲" -> {
-            state.edit { selection = TextRange(0) }
+            state.edit {
+                val text = toString()
+                val currentPos = selection.start
+                
+                val isNearSuperscript = (currentPos > 0 && text[currentPos - 1].isSuperscript()) ||
+                                        (currentPos < length && text[currentPos].isSuperscript())
+                
+                if (isNearSuperscript) {
+                    var start = currentPos
+                    while (start > 0 && text[start - 1].isSuperscript()) start--
+                    selection = TextRange(start)
+                }
+                else {
+                    var nearestIndex = -1
+                    var minDistance = Int.MAX_VALUE
+                    
+                    for (i in text.indices) {
+                        if (text[i].isSuperscript()) {
+                            val distance = Math.abs(i - currentPos)
+                            if (distance < minDistance) {
+                                minDistance = distance
+                                nearestIndex = i + 1
+                            }
+                        }
+                    }
+                    
+                    if (nearestIndex != -1) {
+                        selection = TextRange(nearestIndex)
+                    } else {
+                        selection = TextRange(0)
+                    }
+                }
+            }
         }
         "◀" -> {
             state.edit {
@@ -26,13 +58,51 @@ fun pressed_key(current_key_pressed: String) {
         "▶" -> {
             state.edit {
                 val currentPos = selection.start
-                if (currentPos < length) {
+                val text = toString()
+                
+                if (currentPos > 0 && (text[currentPos - 1].isSuperscript() || text[currentPos - 1].isSubscript())) {
+                    // If we are at the end of a formatted block, insert a break to type normal script
+                    insert(currentPos, "\u200C")
+                    selection = TextRange(currentPos + 1)
+                } else if (currentPos < length) {
                     selection = TextRange(currentPos + 1)
                 }
             }
         }
         "▼" -> {
-            state.edit { selection = TextRange(length) }
+            state.edit {
+                val text = toString()
+                val currentPos = selection.start
+                
+                val isNearSubscript = (currentPos > 0 && text[currentPos - 1].isSubscript()) ||
+                                      (currentPos < length && text[currentPos].isSubscript())
+                
+                if (isNearSubscript) {
+                    var start = currentPos
+                    while (start > 0 && text[start - 1].isSubscript()) start--
+                    selection = TextRange(start)
+                }
+                else {
+                    var nearestIndex = -1
+                    var minDistance = Int.MAX_VALUE
+                    
+                    for (i in text.indices) {
+                        if (text[i].isSubscript()) {
+                            val distance = Math.abs(i - currentPos)
+                            if (distance < minDistance) {
+                                minDistance = distance
+                                nearestIndex = i + 1
+                            }
+                        }
+                    }
+                    
+                    if (nearestIndex != -1) {
+                        selection = TextRange(nearestIndex)
+                    } else {
+                        selection = TextRange(length)
+                    }
+                }
+            }
         }
         "+/-" -> {
             state.edit {
@@ -83,7 +153,7 @@ fun pressed_key(current_key_pressed: String) {
                 }
 
                 val xIndex = text.indexOf('x')
-                val yIndex = text.indexOf('Y')
+                val yIndex = text.indexOf('y')
                 val xSupIndex = text.indexOf('ˣ')
                 val ySupIndex = text.indexOf('ʸ')
                 val basePlaceholderIndex = text.indexOf('ᵧ')
@@ -102,15 +172,17 @@ fun pressed_key(current_key_pressed: String) {
                     replace(targetIndex, targetIndex + 1, replacement)
                     selection = TextRange(targetIndex + replacement.length)
                 } else {
-                    // Smart append: handle exponents and subscripts
-                    val toAppend = if (text.lastOrNull()?.isSuperscript() == true && current_key_pressed.all { it.isDigit() }) {
+                    // Smart append: handle exponents and subscripts based on cursor position
+                    val pos = selection.start
+                    val charBefore = if (pos > 0) text[pos - 1] else null
+                    
+                    val toAppend = if (charBefore?.isSuperscript() == true) {
                         toSuperscript(toAppendBase)
-                    } else if (text.lastOrNull()?.isSubscript() == true && current_key_pressed.all { it.isDigit() }) {
+                    } else if (charBefore?.isSubscript() == true) {
                         toSubscript(toAppendBase)
                     } else {
                         toAppendBase
                     }
-                    val pos = selection.start
                     insert(pos, toAppend)
                     selection = TextRange(pos + toAppend.length)
                 }
@@ -123,7 +195,8 @@ fun toSuperscript(input: String): String {
     val map = mapOf(
         '0' to '⁰', '1' to '¹', '2' to '²', '3' to '³', '4' to '⁴',
         '5' to '⁵', '6' to '⁶', '7' to '⁷', '8' to '⁸', '9' to '⁹',
-        'x' to 'ˣ', 'y' to 'ʸ', '+' to '⁺', '-' to '⁻', '(' to '⁽', ')' to '⁾'
+        'x' to 'ˣ', 'y' to 'ʸ', '+' to '⁺', '-' to '⁻', '(' to '⁽', ')' to '⁾',
+        '×' to 'ˣ', '÷' to 'ᵟ', '*' to 'ˣ', '/' to 'ᐟ' 
     )
     return input.map { map[it] ?: it }.joinToString("")
 }
@@ -132,13 +205,14 @@ fun toSubscript(input: String): String {
     val map = mapOf(
         '0' to '₀', '1' to '₁', '2' to '₂', '3' to '₃', '4' to '₄',
         '5' to '₅', '6' to '₆', '7' to '₇', '8' to '₈', '9' to '₉',
-        'x' to 'ₓ', 'y' to 'ᵧ', '+' to '₊', '-' to '₋', '(' to '₍', ')' to '₎'
+        'x' to 'ₓ', 'y' to 'ᵧ', '+' to '₊', '-' to '₋', '(' to '₍', ')' to '₎',
+        '×' to 'ₓ', '÷' to '⸝'
     )
     return input.map { map[it] ?: it }.joinToString("")
 }
 
-fun Char.isSuperscript(): Boolean = this in "⁰¹²³⁴⁵⁶⁷⁸⁹ˣʸ⁺⁻⁽⁾"
-fun Char.isSubscript(): Boolean = this in "₀₁₂₃₄₅₆₇₈₉ₓᵧ₊₋₍₎"
+fun Char.isSuperscript(): Boolean = this in "⁰¹²³⁴⁵⁶⁷⁸⁹ˣʸ⁺⁻⁽⁾ᐟᵟ"
+fun Char.isSubscript(): Boolean = this in "₀₁₂₃₄₅₆₇₈₉ₓᵧ₊₋₍₎⸝"
 
 fun plus_minus(input: String): String {
     val lastPlus = input.lastIndexOf('+')
