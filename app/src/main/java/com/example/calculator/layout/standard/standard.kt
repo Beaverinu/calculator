@@ -1,6 +1,5 @@
 package com.example.calculator.layout.standard
 
-import android.graphics.fonts.FontFamily
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -9,6 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -23,15 +23,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.calculator.font.Font_roboto_mono
-import com.example.calculator.font.Roboto_Mono
+import androidx.compose.foundation.text.BasicText
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.text.TextLayoutResult
 
 val StandardKeyboard_st = listOf(
-    "2ⁿᵈ", "π", "e", "C", "⌫",
-    "x²", "1/x", "|x|", "exp", "%",
-    "√x", "(", ")", "n!", "÷",
+    "2ⁿᵈ", "π", "e", "▲", "⌫",
+    "x²", "1/x", "◀", "exp", "▶",
+    "√x", "(", ")", "▼", "÷",
     "xʸ", "7", "8", "9", "×",
     "10ˣ", "4", "5", "6", "-",
     "log", "1", "2", "3", "+",
@@ -41,14 +43,15 @@ val StandardKeyboard_st = listOf(
 val StandardKeyboard_nd = listOf(
     "1ˢᵗ", "π", "e", "C", "⌫",
     "x³", "1/x", "|x|", "exp", "%",
-    "³√x", "(", ")", "n!", "÷",
-    "ʸ√x", "7", "8", "9", "×",
-    "2ˣ", "4", "5", "6", "-",
-    "logᵧx", "1", "2", "3", "+",
-    "eˣ", "+/-", "0", ".", "="
+    "³√x", "(", ")", "x!", "÷",
+    "ʸ√x", "sin", "cos", "tan", "×",
+    "2ˣ", "sin⁻¹", "cos⁻¹", "tan⁻¹", "-",
+    "logᵧx", "sinh", "cosh", "tanh", "+",
+    "eˣ", "sinh⁻¹", "cosh⁻¹", "tanh⁻¹", "ans"
 )
 var current_keyboard_in_use by mutableStateOf(1)
-var current_text_in_standard_calculator by mutableStateOf("0")
+val current_text_state = TextFieldState("0")
+
 @Composable
 fun InitStandardCalculator(
     paddingValues: PaddingValues,
@@ -65,12 +68,20 @@ fun InitStandardCalculator(
                 .weight(1f)
                 .fillMaxWidth(),
             contentAlignment = Alignment.BottomEnd
+
         ) {
-            AutoResizingText(
-                text = current_text_in_standard_calculator,
-                style = MaterialTheme.typography.displayLarge,
-                modifier = Modifier.padding(16.dp),
-                color = MaterialTheme.colorScheme.onBackground
+            FakeCursorText(
+                text = current_text_state.text.toString(),
+                cursorIndex = current_text_state.selection.start,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.BottomEnd)
+                    .padding(16.dp),
+                style = MaterialTheme.typography.displayLarge.copy(
+                    fontSize = 48.sp,
+                    color = MaterialTheme.colorScheme.onBackground
+                ),
+                cursorColor = MaterialTheme.colorScheme.secondary
             )
         }
 
@@ -181,4 +192,53 @@ fun AutoResizingText(
             }
         },
     )
+}
+@Composable
+fun FakeCursorText(
+    text: String,
+    cursorIndex: Int,
+    modifier: Modifier = Modifier,
+    style: TextStyle,
+    cursorColor: Color = Color.White,
+    cursorWidthPx: Float = 6f,
+) {
+    var layoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
+    var resizedTextStyle by remember(text) { mutableStateOf(style.copy(textAlign = TextAlign.End)) }
+    var readyToDraw by remember(text) { mutableStateOf(false) }
+
+    val clampedIndex = cursorIndex.coerceIn(0, text.length)
+
+    Box(
+        modifier = modifier.drawWithContent {
+            if (readyToDraw) {
+                drawContent()
+
+                val lr = layoutResult ?: return@drawWithContent
+                val rect = lr.getCursorRect(clampedIndex)
+
+                drawLine(
+                    color = cursorColor,
+                    start = Offset(rect.left, rect.top),
+                    end = Offset(rect.left, rect.bottom),
+                    strokeWidth = cursorWidthPx
+                )
+            }
+        }
+    ) {
+        BasicText(
+            text = text,
+            style = resizedTextStyle,
+            modifier = Modifier.fillMaxWidth(),
+            onTextLayout = { result ->
+                if (result.didOverflowWidth) {
+                    resizedTextStyle = resizedTextStyle.copy(
+                        fontSize = resizedTextStyle.fontSize * 0.95
+                    )
+                } else {
+                    layoutResult = result
+                    readyToDraw = true
+                }
+            },
+        )
+    }
 }

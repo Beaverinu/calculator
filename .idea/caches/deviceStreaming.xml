@@ -120,6 +120,19 @@
         </PersistentDeviceSelectionData>
         <PersistentDeviceSelectionData>
           <option name="api" value="34" />
+          <option name="brand" value="Xiaomi" />
+          <option name="codename" value="xiaomi_lab_garnet" />
+          <option name="id" value="xiaomi_lab_garnet" />
+          <option name="labId" value="xiaomi" />
+          <option name="manufacturer" value="Xiaomi" />
+          <option name="name" value="Redmi Note 13 Pro 5G" />
+          <option name="screenDensity" value="480" />
+          <option name="screenX" value="1220" />
+          <option name="screenY" value="2712" />
+          <option name="selected" value="true" />
+        </PersistentDeviceSelectionData>
+        <PersistentDeviceSelectionData>
+          <option name="api" value="34" />
           <option name="brand" value="Sony" />
           <option name="codename" value="A402SO" />
           <option name="id" value="A402SO" />
@@ -2125,28 +2138,6 @@
           <option name="screenY" value="2408" />
         </PersistentDeviceSelectionData>
         <PersistentDeviceSelectionData>
-          <option name="accessStatus">
-            <list>
-              <option value="EULA_NOT_ACCEPTED" />
-            </list>
-          </option>
-          <option name="api" value="34" />
-          <option name="brand" value="Xiaomi" />
-          <option name="codename" value="xiaomi_lab_garnet" />
-          <option name="id" value="xiaomi_lab_garnet" />
-          <option name="labId" value="xiaomi" />
-          <option name="manufacturer" value="Xiaomi" />
-          <option name="name" value="Redmi Note 13 Pro 5G" />
-          <option name="screenDensity" value="480" />
-          <option name="screenX" value="1220" />
-          <option name="screenY" value="2712" />
-        </PersistentDeviceSelectionData>
-        <PersistentDeviceSelectionData>
-          <option name="accessStatus">
-            <list>
-              <option value="EULA_NOT_ACCEPTED" />
-            </list>
-          </option>
           <option name="api" value="34" />
           <option name="brand" value="Xiaomi" />
           <option name="codename" value="xiaomi_lab_pipa" />
@@ -2160,11 +2151,6 @@
           <option name="screenY" value="2712" />
         </PersistentDeviceSelectionData>
         <PersistentDeviceSelectionData>
-          <option name="accessStatus">
-            <list>
-              <option value="EULA_NOT_ACCEPTED" />
-            </list>
-          </option>
           <option name="api" value="35" />
           <option name="brand" value="Xiaomi" />
           <option name="codename" value="xiaomi_lab_ruyi" />
@@ -2177,11 +2163,6 @@
           <option name="screenY" value="2912" />
         </PersistentDeviceSelectionData>
         <PersistentDeviceSelectionData>
-          <option name="accessStatus">
-            <list>
-              <option value="EULA_NOT_ACCEPTED" />
-            </list>
-          </option>
           <option name="api" value="35" />
           <option name="brand" value="Xiaomi" />
           <option name="codename" value="xiaomi_lab_sheng" />
