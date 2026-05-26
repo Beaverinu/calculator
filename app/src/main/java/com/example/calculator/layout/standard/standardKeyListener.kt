@@ -53,15 +53,16 @@ fun pressed_key(current_key_pressed: String) {
             state.edit {
                 val currentPos = selection.start
                 val text = toString()
-                
+
                 if (currentPos < length && (text[currentPos].isSuperscript() || text[currentPos].isSubscript()) &&
                     (currentPos == 0 || text[currentPos - 1] != '\u200C')) {
                     insert(currentPos, "\u200C")
                     selection = TextRange(currentPos)
                 } else if (currentPos > 0) {
                     if (text[currentPos - 1] == '\u200C') {
-                        selection = TextRange(Math.max(0, currentPos - 2))
-                    } else {
+                        selection = TextRange(Math.max(0, currentPos - 1))
+                    }
+                    else {
                         selection = TextRange(currentPos - 1)
                     }
                 }
@@ -71,14 +72,15 @@ fun pressed_key(current_key_pressed: String) {
             state.edit {
                 val currentPos = selection.start
                 val text = toString()
-                
+
                 if (currentPos > 0 && (text[currentPos - 1].isSuperscript() || text[currentPos - 1].isSubscript()) &&
                     (currentPos == length || text[currentPos] != '\u200C')) {
                     insert(currentPos, "\u200C")
                     selection = TextRange(currentPos + 1)
-                } else if (currentPos < length) {
+                }
+                else if (currentPos < length) {
                     if (text[currentPos] == '\u200C') {
-                        selection = TextRange(Math.min(length, currentPos + 2))
+                        selection = TextRange(Math.min(length, currentPos + 1))
                     } else {
                         selection = TextRange(currentPos + 1)
                     }
@@ -233,10 +235,11 @@ fun pressed_key(current_key_pressed: String) {
                     // Smart append: handle exponents and subscripts based on cursor position
                     val pos = selection.start
                     val charBefore = if (pos > 0) text[pos - 1] else null
+                    val charAfter = if (pos < length) text[pos] else null
                     
-                    val toAppend = if (charBefore?.isSuperscript() == true) {
+                    val toAppend = if (charBefore?.isSuperscript() == true || (charBefore == null && charAfter?.isSuperscript() == true)) {
                         toSuperscript(toAppendBase)
-                    } else if (charBefore?.isSubscript() == true) {
+                    } else if (charBefore?.isSubscript() == true || (charBefore == null && charAfter?.isSubscript() == true)) {
                         toSubscript(toAppendBase)
                     } else {
                         toAppendBase
@@ -275,3 +278,4 @@ fun Char.isSubscript(): Boolean = this in "₀₁₂₃₄₅₆₇₈₉ₓᵧ�
 fun Char.isSuperscriptDigit(): Boolean = this in "⁰¹²³⁴⁵⁶⁷⁸⁹"
 fun Char.isSubscriptDigit(): Boolean = this in "₀₁₂₃₄₅₆₇₈₉"
 
+private fun Char.isScript(): Boolean = isSuperscript() || isSubscript()
