@@ -21,25 +21,28 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.calculator.layout.AutoResizingText
-import com.example.calculator.layout.FakeCursorText
+import com.hrm.latex.renderer.Latex
+import com.hrm.latex.renderer.model.LatexConfig
+import androidx.compose.material3.Text
+
 val StandardKeyboard_st = listOf(
-    "2ⁿᵈ", "π", "e", "▲", "⌫",
-    "x²", "1/x", "◀", "exp", "▶",
-    "√x", "(", ")", "▼", "÷",
-    "xʸ", "7", "8", "9", "×",
-    "10ˣ", "4", "5", "6", "-",
-    "log", "1", "2", "3", "+",
-    "ln", "+/-", "0", ".", "="
+    "\\(2^{nd})", "\\pi", "e", "▲", "⌫",
+    "\\(x^{2})", "\\frac{1}{x}", "◀", "\\exp", "▶",
+    "\\sqrt{x}", "(", ")", "▼", "\\div",
+    "\\(x^{y})", "7", "8", "9", "\\times",
+    "\\(10^{x})", "4", "5", "6", "-",
+    "\\log", "1", "2", "3", "+",
+    "\\ln", "+/-", "0", ".", "="
 )
 
 val StandardKeyboard_nd = listOf(
-    "1ˢᵗ", "π", "e", "C", "⌫",
-    "x³", "1/x", "|x|", "exp", "%",
-    "³√x", "(", ")", "x!", "÷",
-    "ʸ√x", "sin", "cos", "tan", "×",
-    "2ˣ", "sin⁻¹", "cos⁻¹", "tan⁻¹", "-",
-    "logᵧx", "sinh", "cosh", "tanh", "+",
-    "eˣ", "sinh⁻¹", "cosh⁻¹", "tanh⁻¹", "ans"
+    "\\(1^{st})", "\\pi", "e", "C", "⌫",
+    "\\(x^{3})", "\\frac{1}{x}", "\\left|x\\right|", "\\exp", "\\bmod",
+    "\\sqrt[3]{x}", "(", ")", "x!", "\\div",
+    "\\sqrt[y]{x}", "\\sin", "\\cos", "\\tan", "\\times",
+    "\\(2^{x})", "\\(sin^{-1})", "\\(cos^{-1})", "\\(tan^{-1})", "-",
+    "\\(log_{y}x)", "\\sinh", "\\cosh", "\\tanh", "+",
+    "\\(e^{x})", "\\(sinh^{-1})", "\\(cosh^{-1})", "\\(tanh^{-1})", "ans"
 )
 var current_keyboard_in_use by mutableStateOf(1)
 val current_text_state = TextFieldState("0")
@@ -62,16 +65,19 @@ fun InitStandardCalculator(
             contentAlignment = Alignment.BottomEnd
 
         ) {
-            FakeCursorText(
-                text = current_text_state.text.toString(),
-                cursorIndex = current_text_state.selection.start,
+            val latexText = toLatex(
+                input = current_text_state.text.toString(),
+                cursorIndex = current_text_state.selection.start
+            )
+            Latex(
+                latex = latexText,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .align(Alignment.BottomEnd)
                     .padding(16.dp),
-                style = MaterialTheme.typography.displayLarge.copy(fontSize = 48.sp),
-                color = MaterialTheme.colorScheme.onBackground,
-                cursorColor = MaterialTheme.colorScheme.secondary
+                config = LatexConfig(
+                    fontSize = 48.sp,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
             )
         }
 
@@ -118,20 +124,34 @@ fun MakeStandardKeyboard(
                             shape = MaterialTheme.shapes.medium,
                             contentPadding = PaddingValues(0.dp)
                         ) {
-                            val text = if (current_keyboard_in_use == 1) {
+                            val raw = if (current_keyboard_in_use == 1) {
                                 StandardKeyboard_st[i]
-                            }
-                            else if (current_keyboard_in_use == 2){
+                            } else {
                                 StandardKeyboard_nd[i]
                             }
-                            else {
-                                StandardKeyboard_st[i]
+
+                            val uiKeys = setOf("▲", "▼", "◀", "▶", "⌫", "C", "ans", "+/-", "=","(",")")
+
+                            if (raw in uiKeys) {
+                                Text(
+                                    text = raw,
+                                    fontSize = 20.sp,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
                             }
-                            AutoResizingText(
-                                text = text,
-                                style = MaterialTheme.typography.bodyLarge.copy(fontSize = 24.sp),
-                                modifier = Modifier.padding(all = 0.dp)
-                            )
+                            else {
+                                val latexText = raw
+                                    .removePrefix("\\(")
+                                    .removeSuffix(")")
+
+                                Latex(
+                                    latex = latexText,
+                                    config = LatexConfig(
+                                        fontSize = 20.sp,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                )
+                            }
                         }
                     }
                 }

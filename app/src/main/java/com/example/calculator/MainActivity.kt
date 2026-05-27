@@ -21,11 +21,13 @@ import com.example.calculator.layout.equations.InitEquationsCalculator
 import com.example.calculator.layout.functions.InitFunctionsCalculator
 import com.example.calculator.ui.theme.CalculatorTheme
 import com.example.calculator.layout.calculator_current_type
+import com.hrm.latex.base.LatexSDK
 
 class MainActivity : ComponentActivity() {
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        LatexSDK.initialize()
         enableEdgeToEdge()
         setContent {
             var isDarkMode by remember { mutableStateOf(true) }

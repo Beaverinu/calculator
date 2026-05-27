@@ -27,6 +27,7 @@ androidx-compose-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-
 androidx-compose-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4" }
 androidx-compose-material3 = { group = "androidx.compose.material3", name = "material3" }
 androidx-material-icons = { group = "androidx.compose.material", name = "material-icons-extended" }
+latex-renderer = "io.github.zly2006:latex-renderer-android:1.4.4-zly"
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
