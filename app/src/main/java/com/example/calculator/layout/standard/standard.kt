@@ -20,7 +20,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.calculator.layout.AutoResizingText
 import com.hrm.latex.renderer.Latex
 import com.hrm.latex.renderer.model.LatexConfig
 import androidx.compose.material3.Text
@@ -69,6 +68,17 @@ fun InitStandardCalculator(
                 input = current_text_state.text.toString(),
                 cursorIndex = current_text_state.selection.start
             )
+            /*Text(
+                text = latexText,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                style = MaterialTheme.typography.bodyLarge.copy(
+                    fontSize = 48.sp,
+                    color = MaterialTheme.colorScheme.onBackground
+                ),
+                lineHeight = 48.sp
+            )*/
             Latex(
                 latex = latexText,
                 modifier = Modifier
@@ -143,14 +153,24 @@ fun MakeStandardKeyboard(
                                 val latexText = raw
                                     .removePrefix("\\(")
                                     .removeSuffix(")")
-
-                                Latex(
-                                    latex = latexText,
-                                    config = LatexConfig(
-                                        fontSize = 20.sp,
-                                        color = MaterialTheme.colorScheme.onSurface
+                                if (latexText == "\\frac{1}{x}"){
+                                    Latex(
+                                        latex = "1/x",
+                                        config = LatexConfig(
+                                            fontSize = 20.sp,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
                                     )
-                                )
+                                }
+                                else {
+                                    Latex(
+                                        latex = latexText,
+                                        config = LatexConfig(
+                                            fontSize = 20.sp,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                    )
+                                }
                             }
                         }
                     }
