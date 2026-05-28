@@ -31,12 +31,8 @@ private fun forwardDeleteRange(text: String, cursor: Int): Pair<Int, Int>? {
         val close = findMatchingCloseBrace(text, start + 1) ?: return null
         return start to (close + 1)
     }
-    val funcs = listOf("\\sin", "\\cos", "\\tan", "\\log", "\\ln", "\\exp", "\\sinh", "\\cosh", "\\tanh")
-    for (f in funcs) {
-        if (text.startsWith(f, start) && start + f.length < len && text[start + f.length] == '(') {
-            val closeP = findMatchingCloseParen(text, start + f.length) ?: return null
-            return start to (closeP + 1)
-        }
+    matchFunctionCursorAt(text, start)?.let { match ->
+        return match.start to match.endIndex
     }
     return null
 }
@@ -82,9 +78,190 @@ private fun findMatchingCloseParen(text: String, open: Int): Int? {
     }
     return null
 }
+private fun isInverseTrigCallAtOpenParen(text: String, openParen: Int): Int? {
+    if (openParen !in text.indices || text[openParen] != '(') return null
+
+    val funcs = listOf("\\sin", "\\cos", "\\tan", "\\sinh", "\\cosh", "\\tanh")
+
+    for (f in funcs) {
+        val searchStart = (openParen - f.length).coerceAtLeast(0)
+        for (startCandidate in searchStart downTo 0) {
+            if (!text.regionMatches(startCandidate, f, 0, f.length)) continue
+
+            val afterFunc = startCandidate + f.length
+            val afterExp = skipOptionalExponent(text, afterFunc) ?: continue
+
+            var j = afterExp
+            while (j < openParen && text[j].isWhitespace()) j++
+            if (j == openParen) return startCandidate
+        }
+    }
+    return null
+}
+private fun isSimpleFunctionCallAtOpenParen(
+    text: String,
+    openParen: Int,
+    command: String,
+): Int? {
+    if (openParen !in text.indices || text[openParen] != '(') return null
+
+    val len = text.length
+    val searchStart = (openParen - command.length).coerceAtLeast(0)
+
+    for (startCandidate in searchStart downTo 0) {
+        if (!text.regionMatches(startCandidate, command, 0, command.length)) continue
+
+        var i = startCandidate + command.length
+        while (i < len && text[i].isWhitespace()) i++
+
+        if (command == "\\log" && i < openParen && text[i] == '_') {
+            i++
+            while (i < len && text[i].isWhitespace()) i++
+            if (i >= openParen || text[i] != '{') continue
+
+            val close = findMatchingCloseBrace(text, i) ?: continue
+            i = close + 1
+            while (i < len && text[i].isWhitespace()) i++
+        }
+
+        if (i == openParen) return startCandidate
+    }
+
+    return null
+}
+private enum class FunctionCursorKind {
+    SQRT,
+    FRAC,
+    SIMPLE,
+}
+private data class FunctionCursorMatch(
+    val kind: FunctionCursorKind,
+    val start: Int,
+    val argumentIndex: Int,
+    val endIndex: Int,
+)
+private fun matchFunctionCursorAt(text: String, pos: Int): FunctionCursorMatch? {
+    val len = text.length
+
+    if (text.startsWith("\\sqrt", pos)) {
+        var i = pos + 5
+        while (i < len && text[i].isWhitespace()) i++
+        if (i < len && text[i] == '[') {
+            val closeBracket = findMatchingCloseBracket(text, i) ?: return null
+            i = closeBracket + 1
+            while (i < len && text[i].isWhitespace()) i++
+        }
+        if (i < len && text[i] == '{') {
+            val closeBrace = findMatchingCloseBrace(text, i) ?: return null
+            return FunctionCursorMatch(FunctionCursorKind.SQRT, pos, i + 1, closeBrace + 1)
+        }
+    }
+
+    if (text.startsWith("\\frac", pos)) {
+        var i = pos + 5
+        while (i < len && text[i].isWhitespace()) i++
+        if (i < len && text[i] == '{') {
+            val closeNum = findMatchingCloseBrace(text, i) ?: return null
+            i = closeNum + 1
+            while (i < len && text[i].isWhitespace()) i++
+            if (i < len && text[i] == '{') {
+                val closeDen = findMatchingCloseBrace(text, i) ?: return null
+                return FunctionCursorMatch(FunctionCursorKind.FRAC, pos, i + 1, closeDen + 1)
+            }
+        }
+    }
+
+    val simpleFuncs = listOf("\\sin", "\\cos", "\\tan", "\\sinh", "\\cosh", "\\tanh", "\\ln", "\\exp", "\\log")
+    for (command in simpleFuncs) {
+        if (!text.startsWith(command, pos)) continue
+
+        val afterFunc = pos + command.length
+        val afterExp = skipOptionalExponent(text, afterFunc) ?: return null
+
+        if (afterExp < len && text[afterExp] == '(') {
+            val close = findMatchingCloseParen(text, afterExp) ?: return null
+            return FunctionCursorMatch(FunctionCursorKind.SIMPLE, pos, afterExp + 1, close + 1)
+        }
+        if (afterExp < len && text[afterExp] == '{') {
+            val close = findMatchingCloseBrace(text, afterExp) ?: return null
+            return FunctionCursorMatch(FunctionCursorKind.SIMPLE, pos, afterExp + 1, close + 1)
+        }
+    }
+
+    return null
+}
+private fun matchFunctionAtOpenParen(text: String, openParen: Int): FunctionCursorMatch? {
+    if (openParen !in text.indices || text[openParen] != '(') return null
+
+    val simpleCommands = listOf("\\ln", "\\sin", "\\cos", "\\tan", "\\sinh", "\\cosh", "\\tanh", "\\exp", "\\log")
+    for (cmd in simpleCommands) {
+        val start = isSimpleFunctionCallAtOpenParen(text, openParen, cmd)
+        if (start != null) return FunctionCursorMatch(FunctionCursorKind.SIMPLE, start, openParen + 1, openParen + 1)
+    }
+
+    return null
+}
 fun moveCursorLeftStructurally(text: String, pos: Int): Int {
     if (pos <= 0) return 0
     val len = text.length
+
+    if (pos > 0 && text[pos - 1] == ')') {
+        val close = pos - 1
+        val open = findMatchingOpenParen(text, close)
+        if (open != null) {
+            if (matchFunctionAtOpenParen(text, open) != null) {
+                return (open + 1).coerceIn(0, len)
+            }
+        }
+    }
+
+    if (pos > 0 && text[pos - 1] == '(') {
+        val open = pos - 1
+        val match = matchFunctionAtOpenParen(text, open)
+        if (match != null) {
+            return match.start.coerceIn(0, len)
+        }
+    }
+
+    if (pos < len && text[pos] == ')') {
+        val close = pos
+        val open = findMatchingOpenParen(text, close)
+        if (open != null) {
+            val match = matchFunctionAtOpenParen(text, open)
+            if (match != null) {
+                return match.start.coerceIn(0, len)
+            }
+        }
+    }
+
+    if (pos > 0 && text[pos - 1] == ')') {
+        val close = pos - 1
+        val open = findMatchingOpenParen(text, close)
+        if (open != null) {
+            val start = isInverseTrigCallAtOpenParen(text, open)
+            if (start != null) {
+                return (open + 1).coerceIn(0, len)
+            }
+        }
+    }
+    if (pos > 0 && text[pos - 1] == '(') {
+        val open = pos - 1
+        val start = isInverseTrigCallAtOpenParen(text, open)
+        if (start != null) {
+            return start.coerceIn(0, len)
+        }
+    }
+
+    if (pos < len && text[pos] == ')') {
+        val close = pos
+        val open = findMatchingOpenParen(text, close)
+        if (open != null) {
+            val start = isInverseTrigCallAtOpenParen(text, open)
+            if (start != null) {
+                return start.coerceIn(0, len)
+            }
+        }
+    }
 
     if (pos < len && text[pos] == '{' && isAfterLatexCommandAt(text, pos, "\\sqrt")) {
         return (pos + 1).coerceAtMost(len)
@@ -99,6 +276,7 @@ fun moveCursorLeftStructurally(text: String, pos: Int): Int {
     if (pos < len && text[pos] == '{' && pos > 0 && (text[pos - 1] == '^' || text[pos - 1] == '_')) {
         return (pos + 1).coerceAtMost(len)
     }
+
     if (pos >= 2 && text[pos - 1] == '{' && text[pos - 2] == '}') {
         val numClose = pos - 2
         val numOpen = findMatchingOpenBrace(text, numClose)
@@ -111,6 +289,7 @@ fun moveCursorLeftStructurally(text: String, pos: Int): Int {
             }
         }
     }
+
     if (pos > 0 && text[pos - 1] == '{') {
         val openBrace = pos - 1
         if (openBrace > 0 && (text[openBrace - 1] == '^' || text[openBrace - 1] == '_')) {
@@ -152,6 +331,7 @@ fun moveCursorLeftStructurally(text: String, pos: Int): Int {
     if (pos > 0 && (text[pos - 1] == '}' || text[pos - 1] == ']' || text[pos - 1] == ')')) {
         return pos - 1
     }
+
     backspaceDeleteRange(text, pos).let { (from, _) ->
         if (from < pos) return from
     }
@@ -189,6 +369,34 @@ fun moveCursorRightStructurally(text: String, pos: Int): Int {
     if (text[pos] == '}' || text[pos] == ']' || text[pos] == ')') {
         return (pos + 1).coerceAtMost(len)
     }
+
+    if (text.startsWith("\\sqrt", pos)) {
+        var i = pos + 5
+        while (i < len && text[i].isWhitespace()) i++
+        if (i < len && text[i] == '[') {
+            val closeBracket = findMatchingCloseBracket(text, i)
+            if (closeBracket != null) i = closeBracket + 1
+        }
+        while (i < len && text[i].isWhitespace()) i++
+        if (i < len && text[i] == '{') return (i + 1).coerceAtMost(len)
+    }
+
+    if (text.startsWith("\\frac", pos)) {
+        var i = pos + 5
+        while (i < len && text[i].isWhitespace()) i++
+        if (i < len && text[i] == '{') return (i + 1).coerceAtMost(len)
+    }
+
+    matchFunctionCursorAt(text, pos)?.let { match ->
+        return match.argumentIndex.coerceAtMost(len)
+    }
+
+    if (text[pos] == '\\') {
+        var end = pos + 1
+        while (end < len && text[end].isLetter()) end++
+        if (end > pos + 1) return end
+    }
+
     forwardDeleteRange(text, pos)?.let { (from, to) ->
         if (from == pos) {
             if (text.startsWith("\\sqrt", pos)) {
@@ -206,13 +414,8 @@ fun moveCursorRightStructurally(text: String, pos: Int): Int {
             if (text[pos] == '^' || text[pos] == '_') {
                 if (pos + 1 < len && text[pos + 1] == '{') return (pos + 2).coerceAtMost(len)
             }
-            val funcs = listOf("\\sin", "\\cos", "\\tan", "\\log", "\\ln", "\\exp", "\\sinh", "\\cosh", "\\tanh")
-            for (f in funcs) {
-                if (text.startsWith(f, pos)) {
-                    val funcEnd = pos + f.length
-                    if (funcEnd < len && text[funcEnd] == '(') return (funcEnd + 1).coerceAtMost(len)
-                    if (funcEnd < len && text[funcEnd] == '{') return (funcEnd + 1).coerceAtMost(len)
-                }
+            matchFunctionCursorAt(text, pos)?.let { match ->
+                return match.endIndex.coerceAtMost(len)
             }
             return to
         }
@@ -223,6 +426,41 @@ private fun isAfterLatexCommandAt(text: String, pos: Int, command: String): Bool
     val start = pos - command.length
     return start >= 0 && text.regionMatches(start, command, 0, command.length)
 }
+private fun skipOptionalExponent(text: String, indexAfterFunc: Int): Int? {
+    val len = text.length
+    var i = indexAfterFunc
 
+    while (i < len && text[i].isWhitespace()) i++
 
+    if (i >= len || text[i] != '^') return i  // no exponent => unchanged
 
+    i++
+    while (i < len && text[i].isWhitespace()) i++
+    if (i >= len) return null
+
+    if (text[i] == '{') {
+        val close = findMatchingCloseBrace(text, i) ?: return null
+        return close + 1
+    }
+
+    var end = i
+    if (text[end] == '+' || text[end] == '-') end++
+    while (end < len && (text[end].isLetterOrDigit() || text[end] == '.' || text[end] == '_')) {
+        end++
+    }
+    return if (end > i) end else (i + 1).coerceAtMost(len)
+}
+private fun findMatchingOpenParen(text: String, close: Int): Int? {
+    if (close !in text.indices || text[close] != ')') return null
+    var depth = 1
+    for (i in close - 1 downTo 0) {
+        when (text[i]) {
+            ')' -> depth++
+            '(' -> {
+                depth--
+                if (depth == 0) return i
+            }
+        }
+    }
+    return null
+}

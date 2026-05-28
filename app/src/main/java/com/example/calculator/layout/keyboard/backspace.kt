@@ -17,7 +17,6 @@ fun backspaceDeleteRange(text: String, cursor: Int): Pair<Int, Int> {
     }
     return (end - 1) to end
 }
-
 private fun findSqrtRangeEndingAt(text: String, end: Int): Pair<Int, Int>? {
     if (end <= 0 || text[end - 1] != '}') return null
 

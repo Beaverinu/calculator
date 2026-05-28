@@ -17,7 +17,7 @@ fun pressed_key(current_key_pressed: String) {
         "\\(1^{st})" -> current_keyboard_in_use = 1
         "C" -> state.edit {
             replace(0, length, "0")
-            selection = TextRange(1) // after "0"
+            selection = TextRange(1)
         }
         "◀" -> state.edit {
             val pos = selection.start.coerceIn(0, length)
@@ -66,6 +66,7 @@ fun pressed_key(current_key_pressed: String) {
                 selection = TextRange((cur + 1).coerceIn(0, length))
             }
         }
+        "\\exp" -> Unit
         else -> state.edit {
             var text = toString()
             var pos = selection.start.coerceIn(0, length)
@@ -80,6 +81,22 @@ fun pressed_key(current_key_pressed: String) {
                 pos = selection.start.coerceIn(0, length)
             }
 
+            if (current_key_pressed == "\\(x^{2})" || current_key_pressed == "\\(x^{3})" || current_key_pressed == "\\(x^{y})") {
+                val exponent = when (current_key_pressed) {
+                    "\\(x^{2})" -> "2"
+                    "\\(x^{3})" -> "3"
+                    else -> "y"
+                }
+
+                val attachToExistingBase = pos > 0 && text[pos - 1].isDigit()
+                val insertion = if (attachToExistingBase) "^{$exponent}" else "x^{$exponent}"
+
+                insert(pos, insertion)
+                val delta = if (attachToExistingBase) insertion.length else insertionCursorDelta(insertion)
+                selection = TextRange((pos + delta).coerceIn(0, length))
+                return@edit
+            }
+
             val insertion = keyToLatex(current_key_pressed)
             if (insertion.isEmpty()) return@edit
 
@@ -89,7 +106,6 @@ fun pressed_key(current_key_pressed: String) {
             selection = TextRange((pos + delta).coerceIn(0, length))
         }
     }
-
     if (current_keyboard_in_use == 2 && current_key_pressed != "\\(2^{nd})") {
         current_keyboard_in_use = 1
     }
@@ -98,7 +114,7 @@ fun pressed_key(current_key_pressed: String) {
 private fun keyToLatex(key: String): String = when (key) {
     "\\(2^{nd})", "\\(1^{st})" -> ""
     "\\pi", "π" -> "\\pi"
-    "\\div", "÷" -> "\\div"
+    "\\div", "÷" -> "\\frac{}{}"
     "\\times", "×" -> "\\times"
     "\\sin" -> "\\sin(x)"
     "\\cos" -> "\\cos(x)"
@@ -108,16 +124,15 @@ private fun keyToLatex(key: String): String = when (key) {
     "\\tanh" -> "\\tanh(x)"
     "\\log" -> "\\log(x)"
     "\\ln" -> "\\ln(x)"
-    "\\exp" -> "\\exp(x)"
     "\\(sin^{-1})" -> "\\sin^{-1}(x)"
     "\\(cos^{-1})" -> "\\cos^{-1}(x)"
     "\\(tan^{-1})" -> "\\tan^{-1}(x)"
     "\\(sinh^{-1})" -> "\\sinh^{-1}(x)"
     "\\(cosh^{-1})" -> "\\cosh^{-1}(x)"
     "\\(tanh^{-1})" -> "\\tanh^{-1}(x)"
-    "\\(x^{2})" -> "^{2}"
-    "\\(x^{3})" -> "^{3}"
-    "\\(x^{y})" -> "^{y}"
+    "\\(x^{2})" -> "x^{2}"
+    "\\(x^{3})" -> "x^{3}"
+    "\\(x^{y})" -> "x^{y}"
     "\\(10^{x})" -> "10^{x}"
     "\\(2^{x})" -> "2^{x}"
     "\\(e^{x})" -> "e^{x}"
@@ -130,7 +145,7 @@ private fun keyToLatex(key: String): String = when (key) {
     "\\left|x\\right|" -> "\\left|x\\right|"
     "x!" -> "!"
 
-    "C", "⌫", "◀", "▶", "▲", "▼", "ans", "+/-", "=" -> ""
+    "C", "⌫", "◀", "▶", "▲", "▼", "ans", "+/-", "=", "\\exp" -> ""
 
     else -> key
 }

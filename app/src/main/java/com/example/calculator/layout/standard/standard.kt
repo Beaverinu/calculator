@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.sp
 import com.hrm.latex.renderer.Latex
 import com.hrm.latex.renderer.model.LatexConfig
 import androidx.compose.material3.Text
+import androidx.compose.ui.graphics.Color
 
 val StandardKeyboard_st = listOf(
     "\\(2^{nd})", "\\pi", "e", "▲", "⌫",
@@ -68,27 +69,32 @@ fun InitStandardCalculator(
                 input = current_text_state.text.toString(),
                 cursorIndex = current_text_state.selection.start
             )
-            /*Text(
-                text = latexText,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                style = MaterialTheme.typography.bodyLarge.copy(
-                    fontSize = 48.sp,
-                    color = MaterialTheme.colorScheme.onBackground
-                ),
-                lineHeight = 48.sp
-            )*/
-            Latex(
-                latex = latexText,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                config = LatexConfig(
-                    fontSize = 48.sp,
-                    color = MaterialTheme.colorScheme.onBackground
+            Column() {
+                Text(
+                    text = latexText,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    style = MaterialTheme.typography.bodyLarge.copy(
+                        fontSize = 48.sp,
+                        color = MaterialTheme.colorScheme.onSurface
+                    ),
+                    lineHeight = 48.sp
                 )
-            )
+
+                Latex(
+                    latex = latexText,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    config = LatexConfig(
+                        fontSize = 48.sp,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                )
+            }
+
+
         }
 
         MakeStandardKeyboard(
@@ -146,7 +152,7 @@ fun MakeStandardKeyboard(
                                 Text(
                                     text = raw,
                                     fontSize = 20.sp,
-                                    color = MaterialTheme.colorScheme.onSurface
+                                    color = Color.White
                                 )
                             }
                             else {
@@ -158,7 +164,7 @@ fun MakeStandardKeyboard(
                                         latex = "1/x",
                                         config = LatexConfig(
                                             fontSize = 20.sp,
-                                            color = MaterialTheme.colorScheme.onSurface
+                                            color = Color.White
                                         )
                                     )
                                 }
@@ -167,7 +173,7 @@ fun MakeStandardKeyboard(
                                         latex = latexText,
                                         config = LatexConfig(
                                             fontSize = 20.sp,
-                                            color = MaterialTheme.colorScheme.onSurface
+                                            color = Color.White
                                         )
                                     )
                                 }
