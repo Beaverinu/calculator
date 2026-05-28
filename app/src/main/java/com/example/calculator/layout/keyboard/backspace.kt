@@ -94,7 +94,13 @@ private fun findLatexCommandEndingAt(text: String, end: Int): Pair<Int, Int>? {
     if (e == 0) return null
 
     var i = e - 1
-    if (!text[i].isLetter()) return null
+    
+    // Check if it ends with "^{-1}"
+    if (i >= 3 && text.substring(i - 3, i + 1) == "^{-1}") {
+        i -= 4
+    }
+    
+    if (i < 0 || !text[i].isLetter()) return null
 
     while (i >= 0 && text[i].isLetter()) i--
     if (i >= 0 && text[i] == '\\') {

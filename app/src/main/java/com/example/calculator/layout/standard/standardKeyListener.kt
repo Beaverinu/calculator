@@ -88,12 +88,26 @@ fun pressed_key(current_key_pressed: String) {
                     else -> "y"
                 }
 
-                val attachToExistingBase = pos > 0 && text[pos - 1].isDigit()
-                val insertion = if (attachToExistingBase) "^{$exponent}" else "x^{$exponent}"
+                var baseStart = pos
+                val textStr = toString()
+                
+                while (baseStart > 0 && textStr[baseStart - 1].isDigit()) {
+                    baseStart--
+                }
+                val attachToExistingBase = baseStart < pos
 
-                insert(pos, insertion)
-                val delta = if (attachToExistingBase) insertion.length else insertionCursorDelta(insertion)
-                selection = TextRange((pos + delta).coerceIn(0, length))
+                if (attachToExistingBase) {
+                    val baseStr = textStr.substring(baseStart, pos)
+                    replace(baseStart, pos, "{$baseStr}^{$exponent}")
+                    val insertedStr = "{$baseStr}^{$exponent}"
+                    val delta = insertedStr.length - 1
+                    selection = TextRange((baseStart + delta).coerceIn(0, length))
+                } else {
+                    val insertion = "{x}^{$exponent}"
+                    insert(pos, insertion)
+                    val delta = insertionCursorDelta(insertion)
+                    selection = TextRange((pos + delta).coerceIn(0, length))
+                }
                 return@edit
             }
 
@@ -130,12 +144,12 @@ private fun keyToLatex(key: String): String = when (key) {
     "\\(sinh^{-1})" -> "\\sinh^{-1}(x)"
     "\\(cosh^{-1})" -> "\\cosh^{-1}(x)"
     "\\(tanh^{-1})" -> "\\tanh^{-1}(x)"
-    "\\(x^{2})" -> "x^{2}"
-    "\\(x^{3})" -> "x^{3}"
-    "\\(x^{y})" -> "x^{y}"
-    "\\(10^{x})" -> "10^{x}"
-    "\\(2^{x})" -> "2^{x}"
-    "\\(e^{x})" -> "e^{x}"
+    "\\(x^{2})" -> "{x}^{2}"
+    "\\(x^{3})" -> "{x}^{3}"
+    "\\(x^{y})" -> "{x}^{y}"
+    "\\(10^{x})" -> "{10}^{x}"
+    "\\(2^{x})" -> "{2}^{x}"
+    "\\(e^{x})" -> "{e}^{x}"
     "\\sqrt{x}" -> "\\sqrt{x}"
     "\\(^[3])\\sqrt{x}x" -> "\\sqrt[3]{x}"
     "\\(^[])\\sqrt{x}x" -> "\\sqrt[x]{y}"
@@ -179,6 +193,7 @@ fun toLatex(input: String, cursorIndex: Int = -1): String {
         .replace("[]", "[\\square]")
         .replace("()", "(\\square)")
         .replace("█", "{\\color{red}|}")
+        .replace("|}^", "}^") // Fix potential rendering issues with cursor right before superscript brace
 
     return withPlaceholders
 }
