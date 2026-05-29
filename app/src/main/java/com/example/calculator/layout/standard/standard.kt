@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.sp
 import com.hrm.latex.renderer.Latex
 import com.hrm.latex.renderer.model.LatexConfig
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
 import androidx.compose.ui.graphics.Color
 
 val StandardKeyboard_st = listOf(
@@ -45,7 +46,7 @@ val StandardKeyboard_nd = listOf(
     "\\(e^{x})", "\\(sinh^{-1})", "\\(cosh^{-1})", "\\(tanh^{-1})", "ans"
 )
 var current_keyboard_in_use by mutableStateOf(1)
-val current_text_state = TextFieldState("0")
+val current_text_state = TextFieldState("")
 
 @Composable
 fun InitStandardCalculator(

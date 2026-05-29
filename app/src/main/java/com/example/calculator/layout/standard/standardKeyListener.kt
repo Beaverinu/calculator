@@ -7,7 +7,6 @@ import com.example.calculator.parser.previous_ans
 import com.example.calculator.layout.keyboard.backspaceDeleteRange
 import com.example.calculator.layout.keyboard.moveCursorLeftStructurally
 import com.example.calculator.layout.keyboard.moveCursorRightStructurally
-import kotlin.math.min
 
 fun pressed_key(current_key_pressed: String) {
     val state = current_text_state
@@ -16,8 +15,8 @@ fun pressed_key(current_key_pressed: String) {
         "\\(2^{nd})" -> current_keyboard_in_use = 2
         "\\(1^{st})" -> current_keyboard_in_use = 1
         "C" -> state.edit {
-            replace(0, length, "0")
-            selection = TextRange(1)
+            replace(0, length, "")
+            selection = TextRange(0)
         }
         "◀" -> state.edit {
             val pos = selection.start.coerceIn(0, length)
@@ -29,7 +28,37 @@ fun pressed_key(current_key_pressed: String) {
             val text = toString()
             selection = TextRange(moveCursorRightStructurally(text, pos))
         }
-        "▲", "▼" -> Unit
+        "▲" -> state.edit {
+            val pos = selection.start.coerceIn(0, length)
+            val text = toString()
+            var s = pos
+            while (s < length) {
+                if (text[s] == '^') {
+                    val match = com.example.calculator.layout.keyboard.matchFunctionCursorAt(text, s)
+                    if (match != null) {
+                        selection = TextRange(match.argumentIndex)
+                        return@edit
+                    }
+                }
+                s++
+            }
+        }
+        "▼" -> state.edit {
+            val pos = selection.start.coerceIn(0, length)
+            val text = toString()
+            var s = pos
+            while (s < length) {
+                if (text[s] == '_') {
+                    val match = com.example.calculator.layout.keyboard.matchFunctionCursorAt(text, s)
+                    if (match != null) {
+                        selection = TextRange(match.argumentIndex)
+                        return@edit
+                    }
+                }
+                s++
+            }
+            selection = TextRange(length)
+        }
         "⌫" -> state.edit {
             val pos = selection.start.coerceIn(0, length)
             if (pos > 0) {
@@ -37,10 +66,6 @@ fun pressed_key(current_key_pressed: String) {
                 val (from, to) = backspaceDeleteRange(text, pos)
                 delete(from, to)
                 selection = TextRange(from.coerceIn(0, length))
-            }
-            if (length == 0) {
-                insert(0, "0")
-                selection = TextRange(1)
             }
         }
         "ans" -> state.edit {
@@ -55,37 +80,26 @@ fun pressed_key(current_key_pressed: String) {
             val cur = selection.start.coerceIn(0, length)
 
             var start = cur
-            while (start > 0 && (text[start - 1].isDigit() || text[start - 1] == '.')) start--
+            while (start > 0 && (text[start - 1].isDigit() || text[start - 1] == '.')) {
+                start--
+            }
 
-            if (start > 0 && (text[start - 1] == '-' || text[start - 1] == '+')) {
-                val newSign = if (text[start - 1] == '-') "+" else "-"
+            if (start > 0 && (text[start - 1] == '+' || text[start - 1] == '-')) {
+                val currentSign = text[start - 1]
+                val newSign = if (currentSign == '+') "-" else "+"
                 replace(start - 1, start, newSign)
-                selection = TextRange(cur.coerceIn(0, length))
             } else {
                 insert(start, "-")
-                selection = TextRange((cur + 1).coerceIn(0, length))
             }
         }
-        "\\exp" -> Unit
         else -> state.edit {
-            var text = toString()
             var pos = selection.start.coerceIn(0, length)
-
-            if (pos < length && (text[pos] == 'x' || text[pos] == 'y')) {
-                delete(pos, pos + 1)
-                text = toString()
-            }
-
-            if (text == "0" && current_key_pressed != ".") {
-                replace(0, 1, "")
-                pos = selection.start.coerceIn(0, length)
-            }
 
             if (current_key_pressed == "\\(x^{2})" || current_key_pressed == "\\(x^{3})" || current_key_pressed == "\\(x^{y})") {
                 val exponent = when (current_key_pressed) {
                     "\\(x^{2})" -> "2"
                     "\\(x^{3})" -> "3"
-                    else -> "y"
+                    else -> ""
                 }
 
                 var baseStart = pos
@@ -98,12 +112,11 @@ fun pressed_key(current_key_pressed: String) {
 
                 if (attachToExistingBase) {
                     val baseStr = textStr.substring(baseStart, pos)
-                    replace(baseStart, pos, "{$baseStr}^{$exponent}")
-                    val insertedStr = "{$baseStr}^{$exponent}"
-                    val delta = insertedStr.length - 1
+                    replace(baseStart, pos, "($baseStr)^{($exponent)}")
+                    val delta = baseStr.length + 5 // length of (base)^{(exp)} - 1 to be inside exp
                     selection = TextRange((baseStart + delta).coerceIn(0, length))
                 } else {
-                    val insertion = "{x}^{$exponent}"
+                    val insertion = "()^{($exponent)}"
                     insert(pos, insertion)
                     val delta = insertionCursorDelta(insertion)
                     selection = TextRange((pos + delta).coerceIn(0, length))
@@ -120,7 +133,7 @@ fun pressed_key(current_key_pressed: String) {
             selection = TextRange((pos + delta).coerceIn(0, length))
         }
     }
-    if (current_keyboard_in_use == 2 && current_key_pressed != "\\(2^{nd})") {
+    if (current_keyboard_in_use == 2 && (current_key_pressed != "\\(2^{nd})" && current_key_pressed != "\\(1^{st})")) {
         current_keyboard_in_use = 1
     }
 }
@@ -128,49 +141,44 @@ fun pressed_key(current_key_pressed: String) {
 private fun keyToLatex(key: String): String = when (key) {
     "\\(2^{nd})", "\\(1^{st})" -> ""
     "\\pi", "π" -> "\\pi"
-    "\\div", "÷" -> "\\frac{}{}"
+    "\\div", "÷" -> "\\frac{()}{()}"
     "\\times", "×" -> "\\times"
-    "\\sin" -> "\\sin(x)"
-    "\\cos" -> "\\cos(x)"
-    "\\tan" -> "\\tan(x)"
-    "\\sinh" -> "\\sinh(x)"
-    "\\cosh" -> "\\cosh(x)"
-    "\\tanh" -> "\\tanh(x)"
-    "\\log" -> "\\log(x)"
-    "\\ln" -> "\\ln(x)"
-    "\\(sin^{-1})" -> "\\sin^{-1}(x)"
-    "\\(cos^{-1})" -> "\\cos^{-1}(x)"
-    "\\(tan^{-1})" -> "\\tan^{-1}(x)"
-    "\\(sinh^{-1})" -> "\\sinh^{-1}(x)"
-    "\\(cosh^{-1})" -> "\\cosh^{-1}(x)"
-    "\\(tanh^{-1})" -> "\\tanh^{-1}(x)"
-    "\\(x^{2})" -> "{x}^{2}"
-    "\\(x^{3})" -> "{x}^{3}"
-    "\\(x^{y})" -> "{x}^{y}"
-    "\\(10^{x})" -> "{10}^{x}"
-    "\\(2^{x})" -> "{2}^{x}"
-    "\\(e^{x})" -> "{e}^{x}"
-    "\\sqrt{x}" -> "\\sqrt{x}"
-    "\\(^[3])\\sqrt{x}x" -> "\\sqrt[3]{x}"
-    "\\(^[])\\sqrt{x}x" -> "\\sqrt[x]{y}"
-    "\\(log_{y}x)" -> "\\log_{y}(x)"
-    "\\frac{1}{x}" -> "\\frac{1}{x}"
+    "\\sin" -> "\\sin()"
+    "\\cos" -> "\\cos()"
+    "\\tan" -> "\\tan()"
+    "\\sinh" -> "\\sinh()"
+    "\\cosh" -> "\\cosh()"
+    "\\tanh" -> "\\tanh()"
+    "\\log" -> "\\log()"
+    "\\ln" -> "\\ln()"
+    "\\exp" -> "\\exp()"
+    "\\(sin^{-1})" -> "\\sin^{-1}()"
+    "\\(cos^{-1})" -> "\\cos^{-1}()"
+    "\\(tan^{-1})" -> "\\tan^{-1}()"
+    "\\(sinh^{-1})" -> "\\sinh^{-1}()"
+    "\\(cosh^{-1})" -> "\\cosh^{-1}()"
+    "\\(tanh^{-1})" -> "\\tanh^{-1}()"
+    "\\(x^{2})" -> "()^{(2)}"
+    "\\(x^{3})" -> "()^{(3)}"
+    "\\(x^{y})" -> "()^{()}"
+    "\\(10^{x})" -> "10^{()}"
+    "\\(2^{x})" -> "2^{()}"
+    "\\(e^{x})" -> "e^{()}"
+    "\\sqrt{x}", "√x" -> "\\sqrt{()}"
+    "\\sqrt[3]{x}" -> "\\sqrt[3]{()}"
+    "\\sqrt[y]{x}" -> "\\sqrt[()]{()}"
+    "\\(log_{y}x)" -> "\\log_{()}(())"
+    "\\frac{1}{x}" -> "\\frac{(1)}{()}"
     "\\bmod" -> "\\bmod"
-    "\\left|x\\right|" -> "\\left|x\\right|"
+    "\\left|x\\right|" -> "\\left|()\\right|"
     "x!" -> "!"
 
-    "C", "⌫", "◀", "▶", "▲", "▼", "ans", "+/-", "=", "\\exp" -> ""
+    "C", "⌫", "◀", "▶", "▲", "▼", "ans", "+/-", "=" -> ""
 
     else -> key
 }
 
 private fun insertionCursorDelta(inserted: String): Int {
-    val x = inserted.indexOf('x')
-    val y = inserted.indexOf('y')
-    if (x != -1 && y != -1) return min(x, y)
-    if (x != -1) return x
-    if (y != -1) return y
-
     inserted.indexOf("{}").takeIf { it >= 0 }?.let { return it + 1 }
     inserted.indexOf("()").takeIf { it >= 0 }?.let { return it + 1 }
     inserted.indexOf("[]").takeIf { it >= 0 }?.let { return it + 1 }
@@ -182,19 +190,8 @@ fun toLatex(input: String, cursorIndex: Int = -1): String {
         input.substring(0, cursorIndex) + "█" + input.substring(cursorIndex)
     } else input
 
-    val withPlaceholders = withCursor
-        .replace("█x", "█")
-        .replace("x█", "█")
-        .replace("█y", "█")
-        .replace("y█", "█")
-        .replace("x", "\\square")
-        .replace("y", "\\square")
-        .replace("{}", "{\\square}")
-        .replace("[]", "[\\square]")
-        .replace("()", "(\\square)")
+    val processed = withCursor
         .replace("█", "{\\color{red}|}")
-        .replace("|}^", "}^") // Fix potential rendering issues with cursor right before superscript brace
 
-    return withPlaceholders
+    return processed
 }
-

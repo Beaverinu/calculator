@@ -1,57 +1,13 @@
 package com.example.calculator.layout.keyboard
 
-private fun findMatchingCloseBrace(text: String, open: Int): Int? {
-    if (open !in text.indices || text[open] != '{') return null
-    var depth = 1
-    for (i in open + 1 until text.length) {
-        when (text[i]) {
-            '{' -> depth++
-            '}' -> {
-                depth--
-                if (depth == 0) return i
-            }
-        }
-    }
-    return null
-}
-
-private fun findMatchingCloseBracket(text: String, open: Int): Int? {
-    if (open !in text.indices || text[open] != '[') return null
-    var depth = 1
-    for (i in open + 1 until text.length) {
-        when (text[i]) {
-            '[' -> depth++
-            ']' -> {
-                depth--
-                if (depth == 0) return i
-            }
-        }
-    }
-    return null
-}
-
-private fun findMatchingCloseParen(text: String, open: Int): Int? {
-    if (open !in text.indices || text[open] != '(') return null
-    var depth = 1
-    for (i in open + 1 until text.length) {
-        when (text[i]) {
-            '(' -> depth++
-            ')' -> {
-                depth--
-                if (depth == 0) return i
-            }
-        }
-    }
-    return null
-}
-
-private enum class FunctionCursorKind {
+enum class FunctionCursorKind {
     SQRT,
     FRAC,
+    LOG,
     SIMPLE,
 }
 
-private data class FunctionCursorMatch(
+data class FunctionCursorMatch(
     val kind: FunctionCursorKind,
     val start: Int,
     val argumentIndex: Int,
@@ -60,17 +16,16 @@ private data class FunctionCursorMatch(
     val baseEnd: Int = -1,
 )
 
-private fun matchFunctionCursorAt(text: String, pos: Int): FunctionCursorMatch? {
+fun matchFunctionCursorAt(text: String, pos: Int): FunctionCursorMatch? {
     val len = text.length
     if (pos !in text.indices) return null
-
-    // Check for superscript/subscript structure ^{} or _{}
     if (text[pos] == '^' || text[pos] == '_') {
         var i = pos + 1
         while (i < len && text[i].isWhitespace()) i++
         if (i < len && text[i] == '{') {
             val closeBrace = findMatchingCloseBrace(text, i) ?: return null
-            return FunctionCursorMatch(FunctionCursorKind.SIMPLE, pos, i + 1, closeBrace + 1)
+            val argStart = if (i + 1 < len && text[i + 1] == '(') i + 2 else i + 1
+            return FunctionCursorMatch(FunctionCursorKind.SIMPLE, pos, argStart, closeBrace + 1)
         }
     }
 
@@ -80,15 +35,16 @@ private fun matchFunctionCursorAt(text: String, pos: Int): FunctionCursorMatch? 
         var bracketStart = -1
         var bracketEnd = -1
         if (i < len && text[i] == '[') {
-            bracketStart = i + 1
             val closeBracket = findMatchingCloseBracket(text, i) ?: return null
+            bracketStart = if (i + 1 < len && text[i + 1] == '(') i + 2 else i + 1
             bracketEnd = closeBracket
             i = closeBracket + 1
             while (i < len && text[i].isWhitespace()) i++
         }
         if (i < len && text[i] == '{') {
             val closeBrace = findMatchingCloseBrace(text, i) ?: return null
-            return FunctionCursorMatch(FunctionCursorKind.SQRT, pos, i + 1, closeBrace + 1, baseStart = bracketStart, baseEnd = bracketEnd)
+            val argStart = if (i + 1 < len && text[i + 1] == '(') i + 2 else i + 1
+            return FunctionCursorMatch(FunctionCursorKind.SQRT, pos, argStart, closeBrace + 1, baseStart = bracketStart, baseEnd = bracketEnd)
         }
     }
 
@@ -98,11 +54,14 @@ private fun matchFunctionCursorAt(text: String, pos: Int): FunctionCursorMatch? 
         if (i < len && text[i] == '{') {
             val numOpen = i
             val closeNum = findMatchingCloseBrace(text, i) ?: return null
+            val numStart = if (numOpen + 1 < len && text[numOpen + 1] == '(') numOpen + 2 else numOpen + 1
+            
             i = closeNum + 1
             while (i < len && text[i].isWhitespace()) i++
             if (i < len && text[i] == '{') {
                 val closeDen = findMatchingCloseBrace(text, i) ?: return null
-                return FunctionCursorMatch(FunctionCursorKind.FRAC, pos, i + 1, closeDen + 1, baseStart = numOpen + 1, baseEnd = closeNum)
+                val denStart = if (i + 1 < len && text[i + 1] == '(') i + 2 else i + 1
+                return FunctionCursorMatch(FunctionCursorKind.FRAC, pos, denStart, closeDen + 1, baseStart = numStart, baseEnd = closeNum)
             }
         }
     }
@@ -117,17 +76,16 @@ private fun matchFunctionCursorAt(text: String, pos: Int): FunctionCursorMatch? 
             while (i < len && text[i].isWhitespace()) i++
             if (i < len && text[i] == '{') {
                 val closeBase = findMatchingCloseBrace(text, i) ?: return null
-                baseStart = i + 1
+                baseStart = if (i + 1 < len && text[i + 1] == '(') i + 2 else i + 1
                 baseEnd = closeBase
                 i = closeBase + 1
                 while (i < len && text[i].isWhitespace()) i++
             }
         }
-
         if (i < len && text[i] == '(') {
             val close = findMatchingCloseParen(text, i) ?: return null
-            val argumentIndex = i + 1
-            return FunctionCursorMatch(FunctionCursorKind.SIMPLE, pos, argumentIndex, close + 1, baseStart, baseEnd)
+            val argumentIndex = if (i + 1 < len && text[i + 1] == '(') i + 2 else i + 1
+            return FunctionCursorMatch(FunctionCursorKind.LOG, pos, argumentIndex, close + 1, baseStart, baseEnd)
         }
     }
 
@@ -139,17 +97,15 @@ private fun matchFunctionCursorAt(text: String, pos: Int): FunctionCursorMatch? 
     )
     for (command in simpleFuncs) {
         if (!text.startsWith(command, pos)) continue
-
         val afterFunc = pos + command.length
         var i = afterFunc
         while (i < len && text[i].isWhitespace()) i++
-
         if (i < len && text[i] == '(') {
             val close = findMatchingCloseParen(text, i) ?: return null
-            return FunctionCursorMatch(FunctionCursorKind.SIMPLE, pos, i + 1, close + 1)
+            val argStart = if (i + 1 < len && text[i + 1] == '(') i + 2 else i + 1
+            return FunctionCursorMatch(FunctionCursorKind.SIMPLE, pos, argStart, close + 1)
         }
     }
-
     return null
 }
 
@@ -162,22 +118,6 @@ fun moveCursorLeftStructurally(text: String, pos: Int): Int {
         if (text[s] == '\\' || text[s] == '^' || text[s] == '_') {
             val match = matchFunctionCursorAt(text, s)
             if (match != null && pos > match.start && pos <= match.endIndex) {
-                if (match.kind == FunctionCursorKind.FRAC || match.kind == FunctionCursorKind.SQRT) {
-                    return when {
-                        pos >= match.endIndex -> (match.endIndex - 1).coerceAtLeast(0)
-                        pos > match.argumentIndex -> (pos - 1).coerceAtLeast(0)
-                        match.baseEnd != -1 && pos > match.baseEnd -> match.baseEnd.coerceAtLeast(0)
-                        match.baseStart != -1 && pos > match.baseStart -> (pos - 1).coerceAtLeast(0)
-                        else -> match.start.coerceIn(0, len)
-                    }
-                }
-                if ((text[match.start] == '^' || text[match.start] == '_') && match.baseStart == -1) {
-                    return when {
-                        pos >= match.endIndex -> (match.endIndex - 1).coerceAtLeast(0)
-                        pos > match.argumentIndex -> (pos - 1).coerceAtLeast(0)
-                        else -> moveCursorLeftStructurally(text, match.start)
-                    }
-                }
                 return when {
                     pos > match.argumentIndex -> match.argumentIndex
                     match.baseStart != -1 && pos > match.baseStart -> match.baseStart
@@ -188,7 +128,6 @@ fun moveCursorLeftStructurally(text: String, pos: Int): Int {
         if (pos - s > 30) break 
         s--
     }
-
     return (pos - 1).coerceIn(0, len)
 }
 
@@ -196,38 +135,16 @@ fun moveCursorRightStructurally(text: String, pos: Int): Int {
     val len = text.length
     if (pos >= len) return len
 
-    if (text[pos] == '}') {
-        var i = pos + 1
-        while (i < len && text[i].isWhitespace()) i++
-        if (i < len && (text[i] == '^' || text[i] == '_')) {
-            val match = matchFunctionCursorAt(text, i)
-            if (match != null && match.baseStart == -1) {
-                return match.argumentIndex
-            }
-        }
+    val matchExactly = matchFunctionCursorAt(text, pos)
+    if (matchExactly != null) {
+        return (if (matchExactly.baseStart != -1) matchExactly.baseStart else matchExactly.argumentIndex).coerceIn(0, len)
     }
 
-    var s = pos
+    var s = (pos - 1).coerceAtLeast(0)
     while (s >= 0) {
         if (text[s] == '\\' || text[s] == '^' || text[s] == '_') {
             val match = matchFunctionCursorAt(text, s)
-            if (match != null && pos >= match.start && pos < match.endIndex) {
-                if (match.kind == FunctionCursorKind.FRAC || match.kind == FunctionCursorKind.SQRT) {
-                    return when {
-                        match.baseStart != -1 && pos < match.baseStart -> match.baseStart
-                        match.baseStart != -1 && pos < match.baseEnd -> (pos + 1).coerceAtMost(len)
-                        pos < match.argumentIndex -> match.argumentIndex
-                        pos < match.endIndex - 1 -> (pos + 1).coerceAtMost(len)
-                        else -> match.endIndex.coerceIn(0, len)
-                    }
-                }
-                if ((text[match.start] == '^' || text[match.start] == '_') && match.baseStart == -1) {
-                    return when {
-                        pos < match.argumentIndex -> match.argumentIndex
-                        pos < match.endIndex - 1 -> (pos + 1).coerceAtMost(len)
-                        else -> match.endIndex.coerceIn(0, len)
-                    }
-                }
+            if (match != null && pos > match.start && pos < match.endIndex) {
                 return when {
                     pos < match.baseStart && match.baseStart != -1 -> match.baseStart
                     pos < match.argumentIndex -> match.argumentIndex

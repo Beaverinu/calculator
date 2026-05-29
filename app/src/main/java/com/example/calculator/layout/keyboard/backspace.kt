@@ -2,113 +2,55 @@ package com.example.calculator.layout.keyboard
 
 fun backspaceDeleteRange(text: String, cursor: Int): Pair<Int, Int> {
     val end = cursor.coerceIn(0, text.length)
-    if (end == 0) return 0 to 0
+    if (end <= 0) return 0 to 0
 
-    findSqrtRangeEndingAt(text, end)?.let { return it }
-    findFracRangeEndingAt(text, end)?.let { return it }
-    findScriptGroupEndingAt(text, end)?.let { return it }
-    findCommandOrCommandWithOpenerEndingAt(text, end)?.let { return it }
-
-    val fixedTokens = listOf("\\left|", "\\right|")
-    for (tok in fixedTokens) {
-        if (end >= tok.length && text.regionMatches(end - tok.length, tok, 0, tok.length)) {
-            return (end - tok.length) to end
+    // Search for a structure that might be affected by backspace at this position
+    var s = (end - 1).coerceAtMost(text.length - 1)
+    while (s >= 0) {
+        if (text[s] == '\\' || text[s] == '^' || text[s] == '_') {
+            val match = matchFunctionCursorAt(text, s)
+            if (match != null && end > match.start && end <= match.endIndex) {
+                
+                // 1. "From the front": cursor is at the start of any slot
+                if (end == match.argumentIndex || (match.baseStart != -1 && end == match.baseStart)) {
+                    return match.start to match.endIndex
+                }
+                
+                // 2. "Until it is empty then delete entire thing": handling at the end of the structure
+                if (end == match.endIndex) {
+                    val argEmpty = if (match.argumentIndex < text.length && text[match.argumentIndex] == ')') true 
+                                   else match.argumentIndex == match.endIndex - 1
+                    
+                    val baseEmpty = if (match.baseStart != -1) {
+                        if (match.baseStart < text.length && text[match.baseStart] == ')' ) true
+                        else if (match.baseStart < text.length && text[match.baseStart] == ']' ) true
+                        else match.baseStart == match.baseEnd
+                    } else true
+                    
+                    if (argEmpty && baseEmpty) {
+                        return match.start to match.endIndex
+                    } else if (!argEmpty) {
+                        // Deleting char-by-char from the argument
+                        var deletePos = match.endIndex - 1
+                        if (deletePos > 0 && text[deletePos - 1] == ')') deletePos--
+                        return (deletePos - 1) to deletePos
+                    } else if (match.baseStart != -1 && !baseEmpty) {
+                        // Argument is empty, delete char-by-char from the base
+                        var deletePos = match.baseEnd
+                        if (deletePos > 0 && text[deletePos - 1] == ']') deletePos--
+                        if (deletePos > 0 && text[deletePos - 1] == ')') deletePos--
+                        return (deletePos - 1) to deletePos
+                    }
+                    return match.start to match.endIndex
+                }
+                
+                // Otherwise we are in the middle of a slot, use default deletion
+                break
+            }
         }
+        if (end - s > 30) break
+        s--
     }
+
     return (end - 1) to end
 }
-private fun findSqrtRangeEndingAt(text: String, end: Int): Pair<Int, Int>? {
-    if (end <= 0 || text[end - 1] != '}') return null
-
-    val radicandOpen = findMatchingOpenBrace(text, end - 1) ?: return null
-
-    var i = radicandOpen - 1
-    while (i >= 0 && text[i].isWhitespace()) i--
-
-    val sqrt = "\\sqrt"
-    if (i >= sqrt.length - 1 && text.regionMatches(i - (sqrt.length - 1), sqrt, 0, sqrt.length)) {
-        val start = i - (sqrt.length - 1)
-        return start to end
-    }
-    if (i >= 0 && text[i] == ']') {
-        val indexOpen = findMatchingOpenBracket(text, i) ?: return null
-        var j = indexOpen - 1
-        while (j >= 0 && text[j].isWhitespace()) j--
-
-        if (j >= sqrt.length - 1 && text.regionMatches(j - (sqrt.length - 1), sqrt, 0, sqrt.length)) {
-            val start = j - (sqrt.length - 1)
-            return start to end
-        }
-    }
-
-    return null
-}
-private fun findFracRangeEndingAt(text: String, end: Int): Pair<Int, Int>? {
-    if (end <= 0 || text[end - 1] != '}') return null
-
-    val denOpen = findMatchingOpenBrace(text, end - 1) ?: return null
-
-    var i = denOpen - 1
-    while (i >= 0 && text[i].isWhitespace()) i--
-    if (i < 0 || text[i] != '}') return null
-
-    val numClose = i
-    val numOpen = findMatchingOpenBrace(text, numClose) ?: return null
-
-    var j = numOpen - 1
-    while (j >= 0 && text[j].isWhitespace()) j--
-
-    val frac = "\\frac"
-    if (j >= frac.length - 1 && text.regionMatches(j - (frac.length - 1), frac, 0, frac.length)) {
-        val start = j - (frac.length - 1)
-        return start to end
-    }
-
-    return null
-}
-private fun findScriptGroupEndingAt(text: String, end: Int): Pair<Int, Int>? {
-    if (end <= 0 || text[end - 1] != '}') return null
-
-    val open = findMatchingOpenBrace(text, end - 1) ?: return null
-    if (open <= 0) return null
-
-    val sig = text[open - 1]
-    if (sig != '^' && sig != '_') return null
-
-    return (open - 1) to end
-}
-private fun findCommandOrCommandWithOpenerEndingAt(text: String, end: Int): Pair<Int, Int>? {
-    if (end <= 0) return null
-
-    // \sin( etc
-    if (text[end - 1] == '(') {
-        val cmd = findLatexCommandEndingAt(text, end - 1) ?: return null
-        return cmd.first to end
-    }
-
-    val cmd = findLatexCommandEndingAt(text, end) ?: return null
-    return cmd
-}
-private fun findLatexCommandEndingAt(text: String, end: Int): Pair<Int, Int>? {
-    val e = end.coerceIn(0, text.length)
-    if (e == 0) return null
-
-    var i = e - 1
-    
-    // Check if it ends with "^{-1}"
-    if (i >= 3 && text.substring(i - 3, i + 1) == "^{-1}") {
-        i -= 4
-    }
-    
-    if (i < 0 || !text[i].isLetter()) return null
-
-    while (i >= 0 && text[i].isLetter()) i--
-    if (i >= 0 && text[i] == '\\') {
-        val start = i
-        val stop = e
-        if (stop - start >= 2) return start to stop
-    }
-    return null
-}
-
-
