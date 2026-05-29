@@ -113,13 +113,12 @@ fun pressed_key(current_key_pressed: String) {
                 if (attachToExistingBase) {
                     val baseStr = textStr.substring(baseStart, pos)
                     replace(baseStart, pos, "($baseStr)^{($exponent)}")
-                    val delta = baseStr.length + 5 // length of (base)^{(exp)} - 1 to be inside exp
+                    val delta = if (exponent.isEmpty()) baseStr.length + 5 else baseStr.length + 5 + exponent.length
                     selection = TextRange((baseStart + delta).coerceIn(0, length))
                 } else {
                     val insertion = "()^{($exponent)}"
                     insert(pos, insertion)
-                    val delta = insertionCursorDelta(insertion)
-                    selection = TextRange((pos + delta).coerceIn(0, length))
+                    selection = TextRange((pos + 1).coerceIn(0, length))
                 }
                 return@edit
             }
@@ -164,14 +163,14 @@ private fun keyToLatex(key: String): String = when (key) {
     "\\(10^{x})" -> "10^{()}"
     "\\(2^{x})" -> "2^{()}"
     "\\(e^{x})" -> "e^{()}"
-    "\\sqrt{x}", "√x" -> "\\sqrt{()}"
+    "\\sqrt{x}" -> "\\sqrt{()}"
     "\\sqrt[3]{x}" -> "\\sqrt[3]{()}"
     "\\sqrt[y]{x}" -> "\\sqrt[()]{()}"
-    "\\(log_{y}x)" -> "\\log_{()}(())"
+    "\\(log_{y}x)" -> "\\log_{()}()"
     "\\frac{1}{x}" -> "\\frac{(1)}{()}"
     "\\bmod" -> "\\bmod"
-    "\\left|x\\right|" -> "\\left|()\\right|"
-    "x!" -> "!"
+    "\\left|x\\right|" -> "|()|"
+    "x!" -> "()!"
 
     "C", "⌫", "◀", "▶", "▲", "▼", "ans", "+/-", "=" -> ""
 
