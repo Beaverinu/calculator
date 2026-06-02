@@ -1,19 +1,18 @@
-package com.example.calculator.layout.standard
+package com.example.calculator.layout.equations
 
 import androidx.compose.foundation.text.input.delete
 import androidx.compose.foundation.text.input.insert
 import androidx.compose.ui.text.TextRange
-import com.example.calculator.parser.previous_ans
 import com.example.calculator.layout.keyboard.backspaceDeleteRange
 import com.example.calculator.layout.keyboard.moveCursorLeftStructurally
 import com.example.calculator.layout.keyboard.moveCursorRightStructurally
 
-fun pressed_key(current_key_pressed: String) {
-    val state = current_text_state
+fun equations_pressed_key(current_key_pressed: String) {
+    val state = equations_text_state
 
     when (current_key_pressed) {
-        "\\(2^{nd})" -> current_keyboard_in_use = 2
-        "\\(1^{st})" -> current_keyboard_in_use = 1
+        "\\(2^{nd})" -> equations_keyboard_in_use = 2
+        "\\(1^{st})" -> equations_keyboard_in_use = 1
         "C" -> state.edit {
             replace(0, length, "")
             selection = TextRange(0)
@@ -69,18 +68,17 @@ fun pressed_key(current_key_pressed: String) {
             }
         }
         "ans" -> state.edit {
-            val pos = selection.start.coerceIn(0, length)
-            val v = previous_ans.value
-            insert(pos, v)
-            selection = TextRange((pos + v.length).coerceIn(0, length))
-        }
-        "=" -> state.edit {
             val textToEvaluate = toString()
             val result = com.example.calculator.parser.evaluateExpression(textToEvaluate)
             if (result != "Error") {
                 replace(0, length, result)
                 selection = TextRange(result.length)
             }
+        }
+        "=" -> state.edit {
+            val pos = selection.start.coerceIn(0, length)
+            insert(pos, "=")
+            selection = TextRange((pos + 1).coerceIn(0, length))
         }
         "+/-" -> state.edit {
             val text = toString()
@@ -139,8 +137,8 @@ fun pressed_key(current_key_pressed: String) {
             selection = TextRange((pos + delta).coerceIn(0, length))
         }
     }
-    if (current_keyboard_in_use == 2 && (current_key_pressed != "\\(2^{nd})" && current_key_pressed != "\\(1^{st})")) {
-        current_keyboard_in_use = 1
+    if (equations_keyboard_in_use == 2 && (current_key_pressed != "\\(2^{nd})" && current_key_pressed != "\\(1^{st})")) {
+        equations_keyboard_in_use = 1
     }
 }
 
@@ -178,6 +176,24 @@ private fun keyToLatex(key: String): String = when (key) {
     "\\bmod" -> "\\bmod"
     "\\left|x\\right|" -> "|()|"
     "x!" -> "!"
+    "x" -> "x"
+    "y" -> "y"
+    "z" -> "z"
+    "0" -> "0"
+    "1" -> "1"
+    "2" -> "2"
+    "3" -> "3"
+    "4" -> "4"
+    "5" -> "5"
+    "6" -> "6"
+    "7" -> "7"
+    "8" -> "8"
+    "9" -> "9"
+    "." -> "."
+    "<" -> "<"
+    ">" -> ">"
+    "≤" -> "\\le"
+    "≥" -> "\\ge"
 
     "C", "⌫", "◀", "▶", "▲", "▼", "ans", "+/-", "=" -> ""
 
@@ -189,15 +205,4 @@ private fun insertionCursorDelta(inserted: String): Int {
     inserted.indexOf("()").takeIf { it >= 0 }?.let { return it + 1 }
     inserted.indexOf("[]").takeIf { it >= 0 }?.let { return it + 1 }
     return inserted.length
-}
-
-fun toLatex(input: String, cursorIndex: Int = -1): String {
-    val withCursor = if (cursorIndex in 0..input.length) {
-        input.substring(0, cursorIndex) + "█" + input.substring(cursorIndex)
-    } else input
-
-    val processed = withCursor
-        .replace("█", "{\\color{red}|}")
-
-    return processed
 }

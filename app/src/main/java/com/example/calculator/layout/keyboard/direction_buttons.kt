@@ -1,5 +1,8 @@
 package com.example.calculator.layout.keyboard
 
+import com.example.calculator.layout.keyboard.findMatchingCloseBrace
+import com.example.calculator.layout.keyboard.findMatchingCloseBracket
+import com.example.calculator.layout.keyboard.findMatchingCloseParen
 import kotlin.math.max
 import kotlin.math.min
 
@@ -23,18 +26,18 @@ fun matchFunctionCursorAt(text: String, pos: Int): FunctionCursorMatch? {
     val len = text.length
     if (pos !in text.indices) return null
 
-    // Superscript/subscript ^{()} or _{( )}
     if (text[pos] == '^' || text[pos] == '_') {
         if (text[pos] == '_' && pos >= 4 && text.substring(0, pos).trimEnd().endsWith("\\log")) {
-            // Let the \log logic below handle it
         } else {
             var i = pos + 1
             while (i < len && text[i].isWhitespace()) i++
             if (i < len && text[i] == '{') {
                 val closeBrace = findMatchingCloseBrace(text, i) ?: return null
-                // Jump inside the first slot's (): ^{ (|)}
-                val argStart = if (i + 1 < len && text[i + 1] == '(') i + 2 else i + 1
-                return FunctionCursorMatch(FunctionCursorKind.SIMPLE, pos, argStart, closeBrace + 1)
+                val braceContent = text.substring(i + 1, closeBrace)
+                if (braceContent.contains('(')) {
+                    val argStart = if (i + 1 < len && text[i + 1] == '(') i + 2 else i + 1
+                    return FunctionCursorMatch(FunctionCursorKind.SIMPLE, pos, argStart, closeBrace + 1)
+                }
             }
         }
     }
@@ -46,8 +49,11 @@ fun matchFunctionCursorAt(text: String, pos: Int): FunctionCursorMatch? {
         var bracketEnd = -1
         if (i < len && text[i] == '[') {
             val closeBracket = findMatchingCloseBracket(text, i) ?: return null
-            bracketStart = if (i + 1 < len && text[i + 1] == '(') i + 2 else i + 1
-            bracketEnd = closeBracket
+            val bracketContent = text.substring(i + 1, closeBracket)
+            if (bracketContent.contains('(')) {
+                bracketStart = if (i + 1 < len && text[i + 1] == '(') i + 2 else i + 1
+                bracketEnd = closeBracket
+            }
             i = closeBracket + 1
             while (i < len && text[i].isWhitespace()) i++
         }
@@ -123,13 +129,11 @@ fun moveCursorLeftStructurally(text: String, pos: Int): Int {
     if (pos <= 0) return 0
     val len = text.length
 
-    // Skip \times if to the left
     val times = "\\times"
     if (pos >= times.length && text.regionMatches(pos - times.length, times, 0, times.length)) {
         return (pos - times.length).coerceAtLeast(0)
     }
 
-    // 1. Find the structure containing current cursor
     var match: FunctionCursorMatch? = null
     var s = (pos - 1).coerceAtMost(len - 1)
     while (s >= 0) {
@@ -140,24 +144,26 @@ fun moveCursorLeftStructurally(text: String, pos: Int): Int {
                 break
             }
         }
-        if (pos - s > 30) break 
+        if (pos - s > 100) break 
         s--
     }
 
     if (match == null) return (pos - 1).coerceIn(0, len)
 
-    // 2. Perform jumps only at slot boundaries
     return when (pos) {
         match.endIndex -> {
-            val closeParen = findMatchingCloseParen(text, match.argumentIndex - 1)
+            val closeParen = if (match.argumentIndex > 0 && text[match.argumentIndex - 1] == '(') {
+                findMatchingCloseParen(text, match.argumentIndex - 1)
+            } else null
             if (closeParen != null) closeParen else match.argumentIndex
         }
         match.argumentIndex -> {
             if (match.baseStart != -1) {
-                val closeParenBase = findMatchingCloseParen(text, match.baseStart - 1)
+                val closeParenBase = if (match.baseStart > 0 && text[match.baseStart - 1] == '(') {
+                    findMatchingCloseParen(text, match.baseStart - 1)
+                } else null
                 if (closeParenBase != null) closeParenBase else match.baseStart
             } else {
-                // If it's a power, jump left into the preceding group if exists
                 if ((text[match.start] == '^' || text[match.start] == '_') && match.start > 0 && text[match.start - 1] == ')') {
                     match.start - 1
                 } else {
@@ -169,7 +175,6 @@ fun moveCursorLeftStructurally(text: String, pos: Int): Int {
             match.start
         }
         else -> {
-            // Inside a slot: move one by one, but don't land on ( or {
             var target = pos - 1
             while (target > match.start && (text[target] == '(' || text[target] == '{' || text[target] == '[')) {
                 target--
@@ -183,34 +188,30 @@ fun moveCursorRightStructurally(text: String, pos: Int): Int {
     val len = text.length
     if (pos >= len) return len
 
-    // Skip \times if to the right
     val times = "\\times"
     if (text.startsWith(times, pos)) {
         return (pos + times.length).coerceAtMost(len)
     }
 
-    // 1. If at structure start, jump into first slot
     val mExact = matchFunctionCursorAt(text, pos)
     if (mExact != null) {
         return if (mExact.baseStart != -1) mExact.baseStart else mExact.argumentIndex
     }
 
-    // 2. Find structure containing current cursor
     var match: FunctionCursorMatch? = null
     var s = (pos - 1).coerceAtLeast(0)
     while (s >= 0) {
         if (text[s] == '\\' || text[s] == '^' || text[s] == '_') {
             val m = matchFunctionCursorAt(text, s)
-            if (m != null && pos > m.start && pos < m.endIndex) {
+            if (m != null && pos >= m.start && pos < m.endIndex) {
                 match = m
                 break
             }
         }
-        if (pos - s > 30) break
+        if (pos - s > 100) break
         s--
     }
 
-    // If not inside but NEXT pos starts a structure, jump into it
     if (match == null) {
         val nextPos = pos + 1
         if (nextPos < len) {
@@ -222,9 +223,18 @@ fun moveCursorRightStructurally(text: String, pos: Int): Int {
         return (pos + 1).coerceAtMost(len)
     }
 
-    // 3. Perform jumps only at slot boundaries
-    val argEnd = findMatchingCloseParen(text, match.argumentIndex - 1) ?: (match.endIndex - 1)
-    val baseEnd = if (match.baseStart != -1) findMatchingCloseParen(text, match.baseStart - 1) ?: (match.argumentIndex - 2) else -1
+    val argEnd = if (match.argumentIndex > 0 && text[match.argumentIndex - 1] == '(') {
+        findMatchingCloseParen(text, match.argumentIndex - 1) ?: (match.endIndex - 1)
+    } else {
+        match.endIndex - 1
+    }
+    val baseEnd = if (match.baseStart != -1) {
+        if (match.baseStart > 0 && text[match.baseStart - 1] == '(') {
+            findMatchingCloseParen(text, match.baseStart - 1) ?: match.baseEnd
+        } else {
+            match.baseEnd
+        }
+    } else -1
 
     return when (pos) {
         baseEnd -> {
@@ -234,7 +244,6 @@ fun moveCursorRightStructurally(text: String, pos: Int): Int {
             match.endIndex
         }
         else -> {
-            // Inside a slot: move one by one, but don't land on closing chars UNLESS it's the slot end
             var target = pos + 1
             while (target < match.endIndex && target != argEnd && target != baseEnd && 
                    (text[target] == ')' || text[target] == '}' || text[target] == ']')) {
