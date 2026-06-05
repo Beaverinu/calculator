@@ -26,14 +26,17 @@ fun matchFunctionCursorAt(text: String, pos: Int): FunctionCursorMatch? {
     val len = text.length
     if (pos !in text.indices) return null
 
+    // Superscript/subscript ^{()} or _{( )}
     if (text[pos] == '^' || text[pos] == '_') {
         if (text[pos] == '_' && pos >= 4 && text.substring(0, pos).trimEnd().endsWith("\\log")) {
+            // Let the \log logic below handle it
         } else {
             var i = pos + 1
             while (i < len && text[i].isWhitespace()) i++
             if (i < len && text[i] == '{') {
                 val closeBrace = findMatchingCloseBrace(text, i) ?: return null
                 val braceContent = text.substring(i + 1, closeBrace)
+                // Skip if it's a fixed value (doesn't contain parentheses)
                 if (braceContent.contains('(')) {
                     val argStart = if (i + 1 < len && text[i + 1] == '(') i + 2 else i + 1
                     return FunctionCursorMatch(FunctionCursorKind.SIMPLE, pos, argStart, closeBrace + 1)
@@ -50,6 +53,7 @@ fun matchFunctionCursorAt(text: String, pos: Int): FunctionCursorMatch? {
         if (i < len && text[i] == '[') {
             val closeBracket = findMatchingCloseBracket(text, i) ?: return null
             val bracketContent = text.substring(i + 1, closeBracket)
+            // Skip the index slot if it's fixed (like [3]) and doesn't contain ( )
             if (bracketContent.contains('(')) {
                 bracketStart = if (i + 1 < len && text[i + 1] == '(') i + 2 else i + 1
                 bracketEnd = closeBracket
@@ -129,9 +133,12 @@ fun moveCursorLeftStructurally(text: String, pos: Int): Int {
     if (pos <= 0) return 0
     val len = text.length
 
-    val times = "\\times"
-    if (pos >= times.length && text.regionMatches(pos - times.length, times, 0, times.length)) {
-        return (pos - times.length).coerceAtLeast(0)
+    // Skip \times, \le, \ge if to the left
+    val tokens = listOf("\\times", "\\le", "\\ge")
+    for (tok in tokens) {
+        if (pos >= tok.length && text.regionMatches(pos - tok.length, tok, 0, tok.length)) {
+            return (pos - tok.length).coerceAtLeast(0)
+        }
     }
 
     var match: FunctionCursorMatch? = null
@@ -188,9 +195,12 @@ fun moveCursorRightStructurally(text: String, pos: Int): Int {
     val len = text.length
     if (pos >= len) return len
 
-    val times = "\\times"
-    if (text.startsWith(times, pos)) {
-        return (pos + times.length).coerceAtMost(len)
+    // Skip \times, \le, \ge if to the right
+    val tokens = listOf("\\times", "\\le", "\\ge")
+    for (tok in tokens) {
+        if (text.startsWith(tok, pos)) {
+            return (pos + tok.length).coerceAtMost(len)
+        }
     }
 
     val mExact = matchFunctionCursorAt(text, pos)

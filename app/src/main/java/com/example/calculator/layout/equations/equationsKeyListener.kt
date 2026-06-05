@@ -6,6 +6,7 @@ import androidx.compose.ui.text.TextRange
 import com.example.calculator.layout.keyboard.backspaceDeleteRange
 import com.example.calculator.layout.keyboard.moveCursorLeftStructurally
 import com.example.calculator.layout.keyboard.moveCursorRightStructurally
+import com.example.calculator.parser.isResultFinalized
 
 fun equations_pressed_key(current_key_pressed: String) {
     val state = equations_text_state
@@ -16,6 +17,7 @@ fun equations_pressed_key(current_key_pressed: String) {
         "C" -> state.edit {
             replace(0, length, "")
             selection = TextRange(0)
+            isResultFinalized.value = false
         }
         "◀" -> state.edit {
             val pos = selection.start.coerceIn(0, length)
@@ -66,19 +68,18 @@ fun equations_pressed_key(current_key_pressed: String) {
                 delete(from, to)
                 selection = TextRange(from.coerceIn(0, length))
             }
+            isResultFinalized.value = false
         }
         "ans" -> state.edit {
             val textToEvaluate = toString()
-            val result = com.example.calculator.parser.evaluateExpression(textToEvaluate)
-            if (result != "Error") {
-                replace(0, length, result)
-                selection = TextRange(result.length)
-            }
+            com.example.calculator.parser.evaluateExpression(textToEvaluate, isLive = false)
+            isResultFinalized.value = true
         }
         "=" -> state.edit {
             val pos = selection.start.coerceIn(0, length)
             insert(pos, "=")
             selection = TextRange((pos + 1).coerceIn(0, length))
+            isResultFinalized.value = false
         }
         "+/-" -> state.edit {
             val text = toString()
@@ -96,6 +97,59 @@ fun equations_pressed_key(current_key_pressed: String) {
             } else {
                 insert(start, "-")
             }
+            isResultFinalized.value = false
+        }
+        "x", "y", "z", "x/y/z" -> state.edit {
+            val pos = selection.start.coerceIn(0, length)
+            val text = toString()
+            if (pos > 0 && (text[pos - 1] == 'x' || text[pos - 1] == 'y' || text[pos - 1] == 'z')) {
+                val currentVar = text[pos - 1]
+                val nextVar = when (currentVar) {
+                    'x' -> "y"
+                    'y' -> "z"
+                    'z' -> "x"
+                    else -> "x"
+                }
+                replace(pos - 1, pos, nextVar)
+                selection = TextRange(pos)
+            } else {
+                insert(pos, "x")
+                selection = TextRange((pos + 1).coerceIn(0, length))
+            }
+            isResultFinalized.value = false
+        }
+        "</≤" -> state.edit {
+            val pos = selection.start.coerceIn(0, length)
+            val text = toString()
+            
+            // Check if \le is immediately to the left
+            if (pos >= 3 && text.substring(pos - 3, pos) == "\\le") {
+                replace(pos - 3, pos, "<")
+                selection = TextRange(pos - 2)
+            } else if (pos >= 1 && text[pos - 1] == '<') {
+                replace(pos - 1, pos, "\\le")
+                selection = TextRange(pos + 2)
+            } else {
+                insert(pos, "<")
+                selection = TextRange(pos + 1)
+            }
+            isResultFinalized.value = false
+        }
+        ">/≥" -> state.edit {
+            val pos = selection.start.coerceIn(0, length)
+            val text = toString()
+            
+            if (pos >= 3 && text.substring(pos - 3, pos) == "\\ge") {
+                replace(pos - 3, pos, ">")
+                selection = TextRange(pos - 2)
+            } else if (pos >= 1 && text[pos - 1] == '>') {
+                replace(pos - 1, pos, "\\ge")
+                selection = TextRange(pos + 2)
+            } else {
+                insert(pos, ">")
+                selection = TextRange(pos + 1)
+            }
+            isResultFinalized.value = false
         }
         else -> state.edit {
             var pos = selection.start.coerceIn(0, length)
@@ -110,8 +164,23 @@ fun equations_pressed_key(current_key_pressed: String) {
                 var baseStart = pos
                 val textStr = toString()
                 
-                while (baseStart > 0 && textStr[baseStart - 1].isDigit()) {
-                    baseStart--
+                if (baseStart > 0) {
+                    val lastChar = textStr[baseStart - 1]
+                    if (lastChar.isLetter()) {
+                        baseStart--
+                    } else if (lastChar.isDigit()) {
+                        while (baseStart > 0 && textStr[baseStart - 1].isDigit()) {
+                            baseStart--
+                        }
+                    } else if (lastChar == ')') {
+                        var depth = 1
+                        baseStart--
+                        while (baseStart > 0 && depth > 0) {
+                            if (textStr[baseStart - 1] == ')') depth++
+                            else if (textStr[baseStart - 1] == '(') depth--
+                            baseStart--
+                        }
+                    }
                 }
                 val attachToExistingBase = baseStart < pos
 
@@ -125,6 +194,7 @@ fun equations_pressed_key(current_key_pressed: String) {
                     insert(pos, insertion)
                     selection = TextRange((pos + 1).coerceIn(0, length))
                 }
+                isResultFinalized.value = false
                 return@edit
             }
 
@@ -135,6 +205,7 @@ fun equations_pressed_key(current_key_pressed: String) {
 
             val delta = insertionCursorDelta(insertion)
             selection = TextRange((pos + delta).coerceIn(0, length))
+            isResultFinalized.value = false
         }
     }
     if (equations_keyboard_in_use == 2 && (current_key_pressed != "\\(2^{nd})" && current_key_pressed != "\\(1^{st})")) {

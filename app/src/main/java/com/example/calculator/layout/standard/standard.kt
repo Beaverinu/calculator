@@ -9,6 +9,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.text.input.TextFieldState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -23,8 +26,14 @@ import androidx.compose.ui.unit.sp
 import com.hrm.latex.renderer.Latex
 import com.hrm.latex.renderer.model.LatexConfig
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
 import androidx.compose.ui.graphics.Color
+import androidx.compose.runtime.LaunchedEffect
+import com.example.calculator.parser.live_result
+import com.example.calculator.parser.isResultFinalized
+
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.background
 
 val StandardKeyboard_st = listOf(
     "\\(2^{nd})", "\\pi", "e", "▲", "⌫",
@@ -54,6 +63,10 @@ fun InitStandardCalculator(
     isDarkMode: Boolean,
     onDarkModeChange: (Boolean) -> Unit,
 ) {
+    LaunchedEffect(current_text_state.text) {
+        com.example.calculator.parser.evaluateExpression(current_text_state.text.toString(), isLive = true)
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -70,32 +83,50 @@ fun InitStandardCalculator(
                 input = current_text_state.text.toString(),
                 cursorIndex = current_text_state.selection.start
             )
-            Column() {
-                Text(
-                    text = latexText,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    style = MaterialTheme.typography.bodyLarge.copy(
-                        fontSize = 48.sp,
-                        color = MaterialTheme.colorScheme.onSurface
-                    ),
-                    lineHeight = 48.sp
-                )
+            
+            val fontSizeExpr = if (isResultFinalized.value) 30.sp else 48.sp
+            val fontSizeRes = if (isResultFinalized.value) 48.sp else 30.sp
+            
+            val colorExpr = if (isResultFinalized.value) Color.Gray else Color.White
+            val colorRes = if (isResultFinalized.value) Color.White else Color.Gray
+            val standardScrollState = rememberScrollState()
+            LaunchedEffect(latexText, live_result.value) {
+                standardScrollState.scrollTo(standardScrollState.maxValue)
+            }
 
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 Latex(
                     latex = latexText,
                     modifier = Modifier
                         .fillMaxWidth()
+                        .padding(horizontal = 8.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color.DarkGray)
+                        .horizontalScroll(standardScrollState)
                         .padding(16.dp),
                     config = LatexConfig(
-                        fontSize = 48.sp,
-                        color = MaterialTheme.colorScheme.onSurface
+                        fontSize = fontSizeExpr,
+                        color = colorExpr,
+                        darkColor = colorExpr
+                    )
+                )
+                Latex(
+                    latex = live_result.value,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp)
+                        .horizontalScroll(standardScrollState)
+                        .padding(16.dp),
+                    config = LatexConfig(
+                        fontSize = fontSizeRes,
+                        color = colorRes,
+                        darkColor = colorRes
                     )
                 )
             }
-
-
         }
 
         MakeStandardKeyboard(
@@ -165,7 +196,8 @@ fun MakeStandardKeyboard(
                                         latex = "1/x",
                                         config = LatexConfig(
                                             fontSize = 20.sp,
-                                            color = Color.White
+                                            color = Color.White,
+                                            darkColor = Color.White
                                         )
                                     )
                                 }
@@ -174,7 +206,8 @@ fun MakeStandardKeyboard(
                                         latex = latexText,
                                         config = LatexConfig(
                                             fontSize = 20.sp,
-                                            color = Color.White
+                                            color = Color.White,
+                                            darkColor = Color.White
                                         )
                                     )
                                 }
@@ -198,4 +231,3 @@ fun record_key_press(index: Int, keyboard: Int) {
         pressed_key(StandardKeyboard_st[index])
     }
 }
-

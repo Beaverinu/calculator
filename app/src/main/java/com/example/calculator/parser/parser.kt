@@ -3,10 +3,15 @@ package com.example.calculator.parser
 import androidx.compose.runtime.mutableStateOf
 import org.mariuszgromada.math.mxparser.*
 
-val previous_ans = mutableStateOf("")
+val previous_ans = mutableStateOf("/")
+val live_result = mutableStateOf("/")
+val isResultFinalized = mutableStateOf(false)
 
-fun evaluateExpression(latex: String): String {
-    if (latex.isBlank()) return ""
+fun evaluateExpression(latex: String, isLive: Boolean = false): String {
+    if (latex.isBlank()) {
+        if (isLive) live_result.value = "/"
+        return "/"
+    }
 
     // 1. Initial cleanup and standard LaTeX mapping
     var cleanExpr = latex
@@ -41,7 +46,6 @@ fun evaluateExpression(latex: String): String {
     cleanExpr = cleanExpr.replace("()", "0")
     cleanExpr = handleImplicitMultiplication(cleanExpr)
 
-    // 2. Identify the variable and operator
     val variables = listOf("x", "y", "z").filter { cleanExpr.contains(it) }
     val ops = listOf("<=", ">=", "<", ">", "=")
     val op = ops.find { cleanExpr.contains(it) }
@@ -56,58 +60,76 @@ fun evaluateExpression(latex: String): String {
             if (left.isNotEmpty() && right.isNotEmpty()) {
                 val funcExpr = "($left)-($right)"
                 
-                // Using solve(f(x), x, a, b) from mXparser tutorial
-                val ranges = listOf(-10.0 to 10.0, -100.0 to 100.0, -1000.0 to 1000.0, -100000.0 to 100000.0)
-                var boundary = Double.NaN
-                
-                for ((a, b) in ranges) {
-                    val solver = Expression("solve($funcExpr, $variable, $a, $b)")
-                    boundary = solver.calculate()
-                    if (!boundary.isNaN()) break
-                }
-
-                if (!boundary.isNaN()) {
-                    val bFormatted = formatResult(boundary)
-                    
-                    if (op == "=") {
-                        val result = "$variable = $bFormatted"
-                        previous_ans.value = bFormatted
-                        return result
-                    } else {
-                        // Inequality testing - must add argument first so mXparser knows the variable
-                        val arg = Argument(variable, 0.0)
-                        val tester = Expression(cleanExpr, arg)
-                        
-                        arg.argumentValue = boundary - 1.0
-                        val isSmallTrue = tester.calculate() == 1.0
-                        
-                        arg.argumentValue = boundary + 1.0
-                        val isBigTrue = tester.calculate() == 1.0
-                        
-                        val openSymbol = if (op == "<" || op == ">") "(" else "["
-                        val closeSymbol = if (op == "<" || op == ">") ")" else "]"
-                        
-                        val result = when {
-                            isSmallTrue && !isBigTrue -> "$variable is set of (-inf, $bFormatted$closeSymbol"
-                            !isSmallTrue && isBigTrue -> "$variable is set of $openSymbol$bFormatted, inf)"
-                            isSmallTrue && isBigTrue -> "All real numbers"
-                            else -> "No solution"
+                if (op == "=") {
+                    val roots = findMultipleRoots(funcExpr, variable)
+                    if (roots.isNotEmpty()) {
+                        val result = if (roots.size == 1) {
+                            "$variable = ${formatResult(roots[0])}"
+                        } else {
+                            roots.mapIndexed { index, root ->
+                                "${variable}_{${index + 1}} = ${formatResult(root)}"
+                            }.joinToString(", ")
                         }
-                        previous_ans.value = result
+                        if (!isLive) previous_ans.value = result
+                        else live_result.value = result
+                        return result
+                    }
+                } else {
+                    // Inequality solving (Testing intervals)
+                    val roots = findMultipleRoots(funcExpr, variable)
+                    val uniqueRoots = roots.sorted()
+                    
+                    val tester = Expression(cleanExpr, Argument(variable, 0.0))
+                    val intervals = mutableListOf<String>()
+                    val points = mutableListOf<Double>()
+                    points.add(Double.NEGATIVE_INFINITY)
+                    points.addAll(uniqueRoots)
+                    points.add(Double.POSITIVE_INFINITY)
+                    
+                    for (i in 0 until points.size - 1) {
+                        val a = points[i]
+                        val b = points[i+1]
+                        
+                        // Test a point in the interval
+                        val testPoint = when {
+                            a == Double.NEGATIVE_INFINITY && b == Double.POSITIVE_INFINITY -> 0.0
+                            a == Double.NEGATIVE_INFINITY -> b - 1.0
+                            b == Double.POSITIVE_INFINITY -> a + 1.0
+                            else -> (a + b) / 2.0
+                        }
+                        
+                        tester.setArgumentValue(variable, testPoint)
+                        if (tester.calculate() == 1.0) {
+                            val openSymbol = if (op == "<" || op == ">") "(" else "["
+                            val closeSymbol = if (op == "<" || op == ">") ")" else "]"
+                            
+                            val startPart = if (a == Double.NEGATIVE_INFINITY) "(-inf" else "$openSymbol${formatResult(a)}"
+                            val endPart = if (b == Double.POSITIVE_INFINITY) "inf)" else "${formatResult(b)}$closeSymbol"
+                            intervals.add("$startPart, $endPart")
+                        }
+                    }
+                    
+                    if (intervals.isNotEmpty()) {
+                        val result = "$variable ∈ " + intervals.joinToString(" ∪ ")
+                        if (!isLive) previous_ans.value = result
+                        else live_result.value = result
                         return result
                     }
                 }
             }
         }
+        if (isLive) live_result.value = "/"
+        return "/"
     }
 
-    // 4. Constant Comparison Mode (e.g., 5 = 5)
+    // 4. Constant Comparison Mode
     if (op != null && variables.isEmpty()) {
         val cleanComp = cleanExpr.replace("=", "==")
         val checker = Expression(cleanComp)
         val result = checker.calculate()
         val out = if (result == 1.0) "True" else "False"
-        previous_ans.value = out
+        if (!isLive) previous_ans.value = out
+        else live_result.value = out
         return out
     }
 
@@ -117,12 +139,64 @@ fun evaluateExpression(latex: String): String {
     val result = e.calculate()
     
     return if (result.isNaN()) {
-        "Error"
+        if (isLive) live_result.value = "/"
+        "/"
     } else {
         val out = formatResult(result)
-        previous_ans.value = out
+        if (!isLive) previous_ans.value = out
+        else live_result.value = out
         out
     }
+}
+
+private fun findMultipleRoots(funcExpr: String, variable: String): List<Double> {
+    val roots = mutableListOf<Double>()
+    
+    // Scan range with very small steps to catch roots of higher-order polynomials
+    // We check for sign changes to identify root intervals
+    val start = -100.0
+    val end = 100.0
+    val step = 0.5 // Granular step for scan
+    
+    val expr = Expression(funcExpr, Argument(variable, 0.0))
+    
+    var prevX = start
+    expr.setArgumentValue(variable, prevX)
+    var prevVal = expr.calculate()
+    
+    var x = start + step
+    while (x <= end) {
+        expr.setArgumentValue(variable, x)
+        val valAtX = expr.calculate()
+        
+        // If sign change detected or one point is zero
+        if (prevVal * valAtX <= 0) {
+            // Refine the root using mXparser solve() in this small interval
+            val solver = Expression("solve($funcExpr, $variable, $prevX, $x)")
+            val root = solver.calculate()
+            if (!root.isNaN()) {
+                if (roots.none { Math.abs(it - root) < 1e-6 }) {
+                    roots.add(root)
+                }
+            }
+        }
+        
+        prevX = x
+        prevVal = valAtX
+        x += step
+    }
+    
+    // Also check large ranges just in case
+    val wideRanges = listOf(-10000.0 to -100.0, 100.0 to 10000.0)
+    for ((a, b) in wideRanges) {
+        val solver = Expression("solve($funcExpr, $variable, $a, $b)")
+        val root = solver.calculate()
+        if (!root.isNaN() && roots.none { Math.abs(it - root) < 1e-6 }) {
+            roots.add(root)
+        }
+    }
+    
+    return roots.sorted()
 }
 
 private fun handleImplicitMultiplication(expr: String): String {
@@ -141,7 +215,7 @@ private fun handleImplicitMultiplication(expr: String): String {
 
 private fun formatResult(value: Double): String {
     if (value.isInfinite()) return "Infinity"
-    if (value.isNaN()) return "Error"
+    if (value.isNaN()) return "/"
     return if (value == Math.floor(value)) {
         value.toLong().toString()
     } else {

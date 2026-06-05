@@ -12,6 +12,8 @@ import org.junit.Assert.*
 class ExampleUnitTest {
     @Test
     fun addition_isCorrect() {
-        assertEquals(4, 2 + 2)
+        val e = org.mariuszgromada.math.mxparser.Expression("(-1+sqrt(3)*i)")
+        println("Eval: " + e.calculate())
+        println(e.getErrorMessage())
     }
 }

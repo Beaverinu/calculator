@@ -8,9 +8,13 @@ fun backspaceDeleteRange(text: String, cursor: Int): Pair<Int, Int> {
     while (s >= 0) {
         if (text[s] == '\\' || text[s] == '^' || text[s] == '_') {
 
-            if (text[s] == '\\' && text.startsWith("\\times", s)) {
-                if (end > s && end <= s + 6) {
-                    return s to (s + 6)
+            // Instantly delete \times, \le, \ge
+            val fixedTokens = listOf("\\times", "\\le", "\\ge")
+            for (tok in fixedTokens) {
+                if (text.startsWith(tok, s)) {
+                    if (end > s && end <= s + tok.length) {
+                        return s to (s + tok.length)
+                    }
                 }
             }
 
@@ -48,7 +52,7 @@ fun backspaceDeleteRange(text: String, cursor: Int): Pair<Int, Int> {
                 break
             }
         }
-        if (end - s > 30) break
+        if (end - s > 100) break
         s--
     }
 

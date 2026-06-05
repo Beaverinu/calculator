@@ -7,6 +7,7 @@ import com.example.calculator.parser.previous_ans
 import com.example.calculator.layout.keyboard.backspaceDeleteRange
 import com.example.calculator.layout.keyboard.moveCursorLeftStructurally
 import com.example.calculator.layout.keyboard.moveCursorRightStructurally
+import com.example.calculator.parser.isResultFinalized
 
 fun pressed_key(current_key_pressed: String) {
     val state = current_text_state
@@ -17,6 +18,7 @@ fun pressed_key(current_key_pressed: String) {
         "C" -> state.edit {
             replace(0, length, "")
             selection = TextRange(0)
+            isResultFinalized.value = false
         }
         "◀" -> state.edit {
             val pos = selection.start.coerceIn(0, length)
@@ -67,20 +69,19 @@ fun pressed_key(current_key_pressed: String) {
                 delete(from, to)
                 selection = TextRange(from.coerceIn(0, length))
             }
+            isResultFinalized.value = false
         }
         "ans" -> state.edit {
             val pos = selection.start.coerceIn(0, length)
             val v = previous_ans.value
             insert(pos, v)
             selection = TextRange((pos + v.length).coerceIn(0, length))
+            isResultFinalized.value = false
         }
         "=" -> state.edit {
             val textToEvaluate = toString()
-            val result = com.example.calculator.parser.evaluateExpression(textToEvaluate)
-            if (result != "Error") {
-                replace(0, length, result)
-                selection = TextRange(result.length)
-            }
+            com.example.calculator.parser.evaluateExpression(textToEvaluate, isLive = false)
+            isResultFinalized.value = true
         }
         "+/-" -> state.edit {
             val text = toString()
@@ -98,6 +99,7 @@ fun pressed_key(current_key_pressed: String) {
             } else {
                 insert(start, "-")
             }
+            isResultFinalized.value = false
         }
         else -> state.edit {
             var pos = selection.start.coerceIn(0, length)
@@ -127,6 +129,7 @@ fun pressed_key(current_key_pressed: String) {
                     insert(pos, insertion)
                     selection = TextRange((pos + 1).coerceIn(0, length))
                 }
+                isResultFinalized.value = false
                 return@edit
             }
 
@@ -137,6 +140,7 @@ fun pressed_key(current_key_pressed: String) {
 
             val delta = insertionCursorDelta(insertion)
             selection = TextRange((pos + delta).coerceIn(0, length))
+            isResultFinalized.value = false
         }
     }
     if (current_keyboard_in_use == 2 && (current_key_pressed != "\\(2^{nd})" && current_key_pressed != "\\(1^{st})")) {
