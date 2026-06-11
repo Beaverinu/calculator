@@ -9,14 +9,15 @@ import com.example.calculator.layout.keyboard.moveCursorRightStructurally
 import com.example.calculator.parser.isResultFinalized
 
 fun equations_pressed_key(current_key_pressed: String) {
-    val state = equations_text_state
+    if (active_equation_index !in equations_list.indices) return
+    val state = equations_list[active_equation_index]
 
     when (current_key_pressed) {
         "\\(2^{nd})" -> equations_keyboard_in_use = 2
         "\\(1^{st})" -> equations_keyboard_in_use = 1
-        "C" -> state.edit {
-            replace(0, length, "")
-            selection = TextRange(0)
+        "C" -> {
+            equations_list.forEach { it.edit { replace(0, length, "") } }
+            active_equation_index = 0
             isResultFinalized.value = false
         }
         "◀" -> state.edit {
@@ -29,50 +30,31 @@ fun equations_pressed_key(current_key_pressed: String) {
             val text = toString()
             selection = TextRange(moveCursorRightStructurally(text, pos))
         }
-        "▲" -> state.edit {
-            val pos = selection.start.coerceIn(0, length)
-            val text = toString()
-            var s = pos
-            while (s < length) {
-                if (text[s] == '^') {
-                    val match = com.example.calculator.layout.keyboard.matchFunctionCursorAt(text, s)
-                    if (match != null) {
-                        selection = TextRange(match.argumentIndex)
-                        return@edit
-                    }
-                }
-                s++
-            }
+        "▲" -> {
+            if (active_equation_index > 0) active_equation_index--
         }
-        "▼" -> state.edit {
-            val pos = selection.start.coerceIn(0, length)
-            val text = toString()
-            var s = pos
-            while (s < length) {
-                if (text[s] == '_') {
-                    val match = com.example.calculator.layout.keyboard.matchFunctionCursorAt(text, s)
-                    if (match != null) {
-                        selection = TextRange(match.argumentIndex)
-                        return@edit
-                    }
-                }
-                s++
-            }
-            selection = TextRange(length)
+        "▼" -> {
+            if (active_equation_index < equations_list.size - 1) active_equation_index++
         }
-        "⌫" -> state.edit {
-            val pos = selection.start.coerceIn(0, length)
-            if (pos > 0) {
-                val text = toString()
-                val (from, to) = backspaceDeleteRange(text, pos)
-                delete(from, to)
-                selection = TextRange(from.coerceIn(0, length))
+        "⌫" -> {
+            val pos = state.selection.start.coerceIn(0, state.text.length)
+            if (pos == 0 && state.text.isEmpty() && equations_list.size > 1) {
+                // Delete empty window
+                equations_list.removeAt(active_equation_index)
+                active_equation_index = (active_equation_index - 1).coerceAtLeast(0)
+            } else if (pos > 0) {
+                state.edit {
+                    val text = toString()
+                    val (from, to) = backspaceDeleteRange(text, pos)
+                    delete(from, to)
+                    selection = TextRange(from.coerceIn(0, length))
+                }
             }
             isResultFinalized.value = false
         }
-        "ans" -> state.edit {
-            val textToEvaluate = toString()
-            com.example.calculator.parser.evaluateExpression(textToEvaluate, isLive = false)
+        "ans" -> {
+            val combined = equations_list.joinToString(" ; ") { it.text.toString() }
+            com.example.calculator.parser.evaluateExpression(combined, isLive = false)
             isResultFinalized.value = true
         }
         "=" -> state.edit {
@@ -121,8 +103,6 @@ fun equations_pressed_key(current_key_pressed: String) {
         "</≤" -> state.edit {
             val pos = selection.start.coerceIn(0, length)
             val text = toString()
-            
-            // Check if \le is immediately to the left
             if (pos >= 3 && text.substring(pos - 3, pos) == "\\le") {
                 replace(pos - 3, pos, "<")
                 selection = TextRange(pos - 2)
@@ -138,7 +118,6 @@ fun equations_pressed_key(current_key_pressed: String) {
         ">/≥" -> state.edit {
             val pos = selection.start.coerceIn(0, length)
             val text = toString()
-            
             if (pos >= 3 && text.substring(pos - 3, pos) == "\\ge") {
                 replace(pos - 3, pos, ">")
                 selection = TextRange(pos - 2)

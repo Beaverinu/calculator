@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.horizontalScroll
@@ -72,12 +71,10 @@ fun InitEquationsCalculator(
     onDarkModeChange: (Boolean) -> Unit,
 ) {
     LaunchedEffect(equations_list.size) {
-        // Trigger live result update when windows are added/removed
         val combined = equations_list.joinToString(" ; ") { it.text.toString() }
         com.example.calculator.parser.evaluateExpression(combined, isLive = true)
     }
 
-    // Individual text observers for each window
     equations_list.forEachIndexed { index, state ->
         LaunchedEffect(state.text) {
             val combined = equations_list.joinToString(" ; ") { it.text.toString() }
@@ -90,54 +87,48 @@ fun InitEquationsCalculator(
             .fillMaxSize()
             .padding(paddingValues)
     ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(8.dp),
+            horizontalArrangement = Arrangement.End
+        ) {
+            Button(
+                onClick = {
+                    equations_list.add(TextFieldState(""))
+                    active_equation_index = equations_list.size - 1
+                },
+                shape = RoundedCornerShape(12.dp),
+                contentPadding = PaddingValues(0.dp),
+                modifier = Modifier.padding(4.dp)
+            ) {
+                Text("+", fontSize = 24.sp, color = Color.White)
+            }
+        }
+
         Box(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth(),
             contentAlignment = Alignment.BottomEnd
-
         ) {
-            val equationScrollState = rememberScrollState()
+            val mainScrollState = rememberScrollState()
             val resultsScrollState = rememberScrollState()
-            val resultsVerticalScrollState = rememberScrollState()
 
-            LaunchedEffect(live_result.value) {
+            LaunchedEffect(live_result.value, equations_list.size) {
                 repeat(2) {
                     yield()
-                    resultsScrollState.scrollTo(resultsScrollState.maxValue)
-                    resultsVerticalScrollState.scrollTo(resultsVerticalScrollState.maxValue)
+                    mainScrollState.scrollTo(mainScrollState.maxValue)
                 }
             }
 
             Column(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.Top,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(mainScrollState),
+                verticalArrangement = Arrangement.Bottom,
                 horizontalAlignment = Alignment.End
             ) {
-                // Add Equation Button at the top
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(8.dp),
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    Button(
-                        onClick = {
-                            equations_list.add(TextFieldState(""))
-                            active_equation_index = equations_list.size - 1
-                        },
-                        shape = RoundedCornerShape(12.dp),
-                        contentPadding = PaddingValues(0.dp),
-                        modifier = Modifier.padding(4.dp)
-                    ) {
-                        Text("+", fontSize = 24.sp, color = Color.White)
-                    }
-                }
-
-                // Expression Windows
                 Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth()
-                        .verticalScroll(equationScrollState),
+                    modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     equations_list.forEachIndexed { index, state ->
@@ -148,6 +139,25 @@ fun InitEquationsCalculator(
                         )
 
                         val fontSizeExpr = if (isResultFinalized.value) 30.sp else 48.sp
+
+                        val scrollState = rememberScrollState()
+                        LaunchedEffect(state.text, state.selection) {
+                            if (isFocused) {
+                                repeat(2) { yield() }
+                                val textLength = state.text.length
+                                if (textLength > 0) {
+                                    val cursorPosition = state.selection.start
+                                    if (cursorPosition == textLength) {
+                                        scrollState.scrollTo(scrollState.maxValue)
+                                    } else {
+                                        val ratio = cursorPosition.toFloat() / textLength
+                                        scrollState.scrollTo((scrollState.maxValue * ratio).toInt())
+                                    }
+                                } else {
+                                    scrollState.scrollTo(0)
+                                }
+                            }
+                        }
                         
                         Box(
                             modifier = Modifier
@@ -156,10 +166,12 @@ fun InitEquationsCalculator(
                                 .clip(RoundedCornerShape(12.dp))
                                 .background(if (isFocused) Color.DarkGray else Color.DarkGray.copy(alpha = 0.5f))
                                 .clickable { active_equation_index = index }
-                                .padding(16.dp)
                         ) {
                             Latex(
                                 latex = latexText,
+                                modifier = Modifier
+                                    .horizontalScroll(scrollState)
+                                    .padding(16.dp),
                                 config = LatexConfig(
                                     fontSize = fontSizeExpr,
                                     color = if (isResultFinalized.value) Color.Gray else Color.White,
@@ -170,38 +182,31 @@ fun InitEquationsCalculator(
                     }
                 }
 
-                // Results Area
+                // Results Area immediately below
                 val resultLines = live_result.value
                     .split(" ; ")
                     .filter { it.isNotBlank() }
                 
-                Box(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(max = 200.dp)
                         .padding(8.dp),
-                    contentAlignment = Alignment.BottomEnd
+                    horizontalAlignment = Alignment.End,
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .verticalScroll(resultsVerticalScrollState),
-                        horizontalAlignment = Alignment.End
-                    ) {
-                        resultLines.forEach { line ->
-                            Latex(
-                                latex = line,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .horizontalScroll(resultsScrollState)
-                                    .padding(8.dp),
-                                config = LatexConfig(
-                                    fontSize = if (isResultFinalized.value) 48.sp else 30.sp,
-                                    color = if (isResultFinalized.value) Color.White else Color.Gray,
-                                    darkColor = if (isResultFinalized.value) Color.White else Color.Gray
-                                )
+                    resultLines.forEach { line ->
+                        Latex(
+                            latex = line,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(resultsScrollState)
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                            config = LatexConfig(
+                                fontSize = if (isResultFinalized.value) 48.sp else 30.sp,
+                                color = if (isResultFinalized.value) Color.White else Color.Gray,
+                                darkColor = if (isResultFinalized.value) Color.White else Color.Gray
                             )
-                        }
+                        )
                     }
                 }
             }

@@ -30,6 +30,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.runtime.LaunchedEffect
 import com.example.calculator.parser.live_result
 import com.example.calculator.parser.isResultFinalized
+import kotlinx.coroutines.yield
 
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
@@ -90,8 +91,20 @@ fun InitStandardCalculator(
             val colorExpr = if (isResultFinalized.value) Color.Gray else Color.White
             val colorRes = if (isResultFinalized.value) Color.White else Color.Gray
             val standardScrollState = rememberScrollState()
-            LaunchedEffect(latexText, live_result.value) {
-                standardScrollState.scrollTo(standardScrollState.maxValue)
+            LaunchedEffect(current_text_state.text, current_text_state.selection, live_result.value) {
+                repeat(2) { yield() }
+                val textLength = current_text_state.text.length
+                if (textLength > 0) {
+                    val cursorPosition = current_text_state.selection.start
+                    if (cursorPosition == textLength) {
+                        standardScrollState.scrollTo(standardScrollState.maxValue)
+                    } else {
+                        val ratio = cursorPosition.toFloat() / textLength
+                        standardScrollState.scrollTo((standardScrollState.maxValue * ratio).toInt())
+                    }
+                } else {
+                    standardScrollState.scrollTo(0)
+                }
             }
 
             Column(
