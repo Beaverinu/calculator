@@ -8,8 +8,8 @@ fun backspaceDeleteRange(text: String, cursor: Int): Pair<Int, Int> {
     while (s >= 0) {
         if (text[s] == '\\' || text[s] == '^' || text[s] == '_') {
 
-            // Instantly delete \times, \le, \ge, \pi
-            val fixedTokens = listOf("\\times", "\\le", "\\ge", "\\pi")
+            // Instantly delete \times , \le , \ge , \pi 
+            val fixedTokens = listOf("\\times ", "\\le ", "\\ge ", "\\pi ", "\\bmod ")
             for (tok in fixedTokens) {
                 if (text.startsWith(tok, s)) {
                     if (end > s && end <= s + tok.length) {

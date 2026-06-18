@@ -150,9 +150,9 @@ fun pressed_key(current_key_pressed: String) {
 
 private fun keyToLatex(key: String): String = when (key) {
     "\\(2^{nd})", "\\(1^{st})" -> ""
-    "\\pi", "π" -> "\\pi"
+    "\\pi", "π" -> "\\pi "
     "\\div", "÷" -> "\\frac{()}{()}"
-    "\\times", "×" -> "\\times"
+    "\\times", "×" -> "\\times "
     "\\sin" -> "\\sin()"
     "\\cos" -> "\\cos()"
     "\\tan" -> "\\tan()"
@@ -179,7 +179,7 @@ private fun keyToLatex(key: String): String = when (key) {
     "\\sqrt[y]{x}" -> "\\sqrt[()]{()}"
     "\\(log_{y}x)" -> "\\log_{()}()"
     "\\frac{1}{x}" -> "\\frac{(1)}{()}"
-    "\\bmod" -> "\\bmod"
+    "\\bmod" -> "\\bmod "
     "\\left|x\\right|" -> "|()|"
     "x!" -> "!"
 

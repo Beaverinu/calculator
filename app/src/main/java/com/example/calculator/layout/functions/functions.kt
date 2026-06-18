@@ -25,6 +25,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.calculator.layout.common.LatexEntryField
 import com.hrm.latex.renderer.Latex
 import com.hrm.latex.renderer.model.LatexConfig
 import androidx.compose.material3.Text
@@ -153,12 +154,6 @@ fun InitFunctionsCalculator(
                 ) {
                     functions_list.forEachIndexed { index, state ->
                         val isFocused = active_function_index == index
-                        val latexText = remember(state.text, state.selection, isFocused) {
-                            toLatex(
-                                input = state.text.toString(),
-                                cursorIndex = if (isFocused) state.selection.start else -1
-                            )
-                        }
 
                         val scrollState = rememberScrollState()
                         LaunchedEffect(state.text, state.selection) {
@@ -189,8 +184,9 @@ fun InitFunctionsCalculator(
                                 .background(if (isFocused) Color.DarkGray else Color.DarkGray.copy(alpha = 0.5f))
                                 .clickable { active_function_index = index }
                         ) {
-                            Latex(
-                                latex = latexText,
+                            LatexEntryField(
+                                state = state,
+                                isFocused = isFocused,
                                 modifier = Modifier
                                     .horizontalScroll(scrollState)
                                     .padding(16.dp),

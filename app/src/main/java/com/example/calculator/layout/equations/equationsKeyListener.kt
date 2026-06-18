@@ -103,12 +103,12 @@ fun equations_pressed_key(current_key_pressed: String) {
         "</≤" -> state.edit {
             val pos = selection.start.coerceIn(0, length)
             val text = toString()
-            if (pos >= 3 && text.substring(pos - 3, pos) == "\\le") {
-                replace(pos - 3, pos, "<")
-                selection = TextRange(pos - 2)
+            if (pos >= 4 && text.substring(pos - 4, pos) == "\\le ") {
+                replace(pos - 4, pos, "<")
+                selection = TextRange(pos - 3)
             } else if (pos >= 1 && text[pos - 1] == '<') {
-                replace(pos - 1, pos, "\\le")
-                selection = TextRange(pos + 2)
+                replace(pos - 1, pos, "\\le ")
+                selection = TextRange(pos + 3)
             } else {
                 insert(pos, "<")
                 selection = TextRange(pos + 1)
@@ -118,12 +118,12 @@ fun equations_pressed_key(current_key_pressed: String) {
         ">/≥" -> state.edit {
             val pos = selection.start.coerceIn(0, length)
             val text = toString()
-            if (pos >= 3 && text.substring(pos - 3, pos) == "\\ge") {
-                replace(pos - 3, pos, ">")
-                selection = TextRange(pos - 2)
+            if (pos >= 4 && text.substring(pos - 4, pos) == "\\ge ") {
+                replace(pos - 4, pos, ">")
+                selection = TextRange(pos - 3)
             } else if (pos >= 1 && text[pos - 1] == '>') {
-                replace(pos - 1, pos, "\\ge")
-                selection = TextRange(pos + 2)
+                replace(pos - 1, pos, "\\ge ")
+                selection = TextRange(pos + 3)
             } else {
                 insert(pos, ">")
                 selection = TextRange(pos + 1)
@@ -194,9 +194,9 @@ fun equations_pressed_key(current_key_pressed: String) {
 
 private fun keyToLatex(key: String): String = when (key) {
     "\\(2^{nd})", "\\(1^{st})" -> ""
-    "\\pi", "π" -> "\\pi"
+    "\\pi", "π" -> "\\pi "
     "\\div", "÷" -> "\\frac{()}{()}"
-    "\\times", "×" -> "\\times"
+    "\\times", "×" -> "\\times "
     "\\sin" -> "\\sin()"
     "\\cos" -> "\\cos()"
     "\\tan" -> "\\tan()"
@@ -223,7 +223,7 @@ private fun keyToLatex(key: String): String = when (key) {
     "\\sqrt[y]{x}" -> "\\sqrt[()]{()}"
     "\\(log_{y}x)" -> "\\log_{()}()"
     "\\frac{1}{x}" -> "\\frac{(1)}{()}"
-    "\\bmod" -> "\\bmod"
+    "\\bmod" -> "\\bmod "
     "\\left|x\\right|" -> "|()|"
     "x!" -> "!"
     "x" -> "x"
@@ -242,8 +242,8 @@ private fun keyToLatex(key: String): String = when (key) {
     "." -> "."
     "<" -> "<"
     ">" -> ">"
-    "≤" -> "\\le"
-    "≥" -> "\\ge"
+    "≤" -> "\\le "
+    "≥" -> "\\ge "
 
     "C", "⌫", "◀", "▶", "▲", "▼", "ans", "+/-", "=" -> ""
 

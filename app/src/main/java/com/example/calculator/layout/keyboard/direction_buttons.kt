@@ -133,8 +133,8 @@ fun moveCursorLeftStructurally(text: String, pos: Int): Int {
     if (pos <= 0) return 0
     val len = text.length
 
-    // Skip \times, \le, \ge, \pi if to the left
-    val tokens = listOf("\\times", "\\le", "\\ge", "\\pi")
+    // Skip \times , \le , \ge , \pi  if to the left
+    val tokens = listOf("\\times ", "\\le ", "\\ge ", "\\pi ", "\\bmod ")
     for (tok in tokens) {
         if (pos >= tok.length && text.regionMatches(pos - tok.length, tok, 0, tok.length)) {
             return (pos - tok.length).coerceAtLeast(0)
@@ -195,8 +195,8 @@ fun moveCursorRightStructurally(text: String, pos: Int): Int {
     val len = text.length
     if (pos >= len) return len
 
-    // Skip \times, \le, \ge, \pi if to the right
-    val tokens = listOf("\\times", "\\le", "\\ge", "\\pi")
+    // Skip \times , \le , \ge , \pi  if to the right
+    val tokens = listOf("\\times ", "\\le ", "\\ge ", "\\pi ", "\\bmod ")
     for (tok in tokens) {
         if (text.startsWith(tok, pos)) {
             return (pos + tok.length).coerceAtMost(len)
